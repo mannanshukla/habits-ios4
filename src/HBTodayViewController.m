@@ -56,7 +56,7 @@
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
     NSDictionary *h = [self habitAt:ip];
-    if (!h) { self.tabBarController.selectedIndex = 1; return; }
+    if (!h) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [e release]; return; }
     NSString *key = [HBStore today], *type = [h objectForKey:@"type"]; NSNumber *v = [HBStore value:h day:key]; double target = [[h objectForKey:@"target"] doubleValue];
     if ([type isEqualToString:@"check"]) { [HBStore setValue:[HBStore isDone:h day:key] ? nil : [NSNumber numberWithInt:1] habit:h day:key]; if (![HBStore isDone:h day:key]) {} else AudioServicesPlaySystemSound(1057); [self reload]; return; }
     if ([type isEqualToString:@"count"]) {
