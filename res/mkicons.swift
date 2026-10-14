@@ -10,9 +10,9 @@ func check(_ s: CGFloat, _ color: NSColor, ring: Bool) {
 func icon(_ size: Int, _ path: String) {
     let rep = bitmap(size, size); NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let s = CGFloat(size)
-    NSGradient(starting: NSColor(deviceRed: 0.79, green: 0.94, blue: 0.23, alpha: 1), ending: NSColor(deviceRed: 0.69, green: 0.89, blue: 0.02, alpha: 1))!.draw(in: NSRect(x: 0, y: 0, width: s, height: s), angle: -90)
+    NSGradient(starting: NSColor(deviceRed: 0.49, green: 0.72, blue: 0.14, alpha: 1), ending: NSColor(deviceRed: 0.30, green: 0.49, blue: 0.06, alpha: 1))!.draw(in: NSRect(x: 0, y: 0, width: s, height: s), angle: -90)
     let sh = NSShadow(); sh.shadowOffset = NSSize(width: 0, height: -s*0.02); sh.shadowBlurRadius = s*0.03; sh.shadowColor = NSColor(white: 0, alpha: 0.35); sh.set()
-    check(s, NSColor(deviceRed: 0.12, green: 0.22, blue: 0.03, alpha: 1), ring: true)
+    check(s, NSColor.white, ring: true)
     NSGraphicsContext.restoreGraphicsState(); save(rep, path)
 }
 icon(57, "Icon.png"); icon(114, "Icon@2x.png"); icon(256, "Icon-preview.png")
