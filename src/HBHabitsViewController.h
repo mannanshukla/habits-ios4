@@ -10,6 +10,6 @@
 @interface HBPickViewController : UITableViewController { NSArray *proposed; NSMutableSet *chosen; NSString *goal; }
 - (id)initWithHabits:(NSArray *)h goal:(NSString *)g;
 @end
-@interface HBDetailViewController : UITableViewController { NSDictionary *habit; HBHeatmapView *heat; HBChartView *byDay; }
+@interface HBDetailViewController : UITableViewController { NSDictionary *habit; HBCalendarView *heat; HBChartView *byDay; }
 - (id)initWithHabit:(NSDictionary *)h;
 @end

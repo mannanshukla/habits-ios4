@@ -23,10 +23,10 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
     if (o) { [d removeObjectForKey:@"hb_open"]; [d synchronize];
         if ([o isEqualToString:@"add"]) [self add]; else if ([o isEqualToString:@"gen"]) [self generate];
         else if ([o isEqualToString:@"detail"] && [habits count]) [self tableView:self.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
-        else if ([o isEqualToString:@"edit"] && [habits count]) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:[habits objectAtIndex:0]]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
+        else if ([o isEqualToString:@"edit"] && [habits count]) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:[habits objectAtIndex:0]]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
     }
 }
-- (void)add { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
+- (void)add { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
 - (void)generate { HBGenerateViewController *g = [[HBGenerateViewController alloc] init]; [self.navigationController pushViewController:g animated:YES]; [g release]; }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return MAX(1, (NSInteger)[habits count]); }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -236,13 +236,13 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; [habit release]; [heat release]; [byDay release]; [super dealloc]; }
 - (void)viewDidLoad { [super viewDidLoad]; [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deleted) name:@"HBHabitDeleted" object:nil]; }
 - (void)deleted { [self.navigationController popViewControllerAnimated:NO]; }
-- (void)edit { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:habit]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
+- (void)edit { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:habit]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
 - (void)viewWillAppear:(BOOL)a {
     [super viewWillAppear:a];
     NSDictionary *fresh = [HBStore habit:[habit objectForKey:@"id"]]; if (fresh) { [habit release]; habit = [fresh retain]; self.title = [habit objectForKey:@"name"]; }
     NSDate *today = [NSDate date]; NSDate *start = [HBStore addDays:-(11 * 7 + [HBStore weekdayIndex:today]) to:today];
-    if (!heat) heat = [[HBHeatmapView alloc] initWithFrame:CGRectMake(0, 0, 300, [HBHeatmapView heightForWeeks:12])];
-    [heat setStates:[HBStore dayStates:habit from:start to:today] startWeekday:0 tint:[HBStore color:habit]];
+    if (!heat) heat = [[HBCalendarView alloc] initWithFrame:CGRectMake(0, 0, 300, [HBCalendarView heightForWeeks:12])];
+    [heat setStates:[HBStore dayStates:habit from:start to:today] start:start tint:[HBStore color:habit]];
     // completion by weekday over the last 12 weeks
     int done[7] = {0}, due[7] = {0}; NSDate *d = start;
     for (int i = 0; i < 84; i++) { int s = [HBStore state:habit on:d], wd = [HBStore weekdayIndex:d]; if (s == HBDone) { done[wd]++; due[wd]++; } else if (s == HBMissed) due[wd]++; d = [HBStore addDays:1 to:d]; }
@@ -257,9 +257,9 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 - (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s { return s == 1 ? @"Last 12 weeks" : s == 2 ? @"By weekday" : nil; }
 - (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s {
     if (s == 0) { NSString *why = [habit objectForKey:@"why"]; return [why length] ? why : nil; }
-    return s == 1 ? @"Filled is done, red is missed, yellow is skipped. Strength is a moving average, so one miss dents it instead of zeroing it." : nil;
+    return s == 1 ? @"An X is a day done, a dot a miss, a dash a skip. Strength is a moving average, so one miss dents it instead of zeroing it." : nil;
 }
-- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return ip.section == 1 ? [HBHeatmapView heightForWeeks:12] : ip.section == 2 ? 150 : 44; }
+- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return ip.section == 1 ? [HBCalendarView heightForWeeks:12] : ip.section == 2 ? 150 : 44; }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     UITableViewCell *c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil] autorelease]; c.selectionStyle = UITableViewCellSelectionStyleNone;
     if (ip.section == 0) {
@@ -267,7 +267,7 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
         else if (ip.row == 1) { int s = [HBStore streak:habit], b = [HBStore bestStreak:habit]; c.textLabel.text = @"Streak"; c.detailTextLabel.text = [NSString stringWithFormat:@"%d day%@ · best %d", s, s == 1 ? @"" : @"s", b]; }
         else { int dn, du; [HBStore completion:habit days:30 done:&dn due:&du]; c.textLabel.text = @"Last 30 days"; c.detailTextLabel.text = [NSString stringWithFormat:@"%d of %d", dn, du]; }
         c.detailTextLabel.textColor = [HBStore color:habit];
-    } else { UIView *v = ip.section == 1 ? (UIView *)heat : (UIView *)byDay; v.frame = CGRectMake(0, 0, c.contentView.bounds.size.width, ip.section == 1 ? [HBHeatmapView heightForWeeks:12] : 150); v.autoresizingMask = UIViewAutoresizingFlexibleWidth; [c.contentView addSubview:v]; }
+    } else { UIView *v = ip.section == 1 ? (UIView *)heat : (UIView *)byDay; v.frame = CGRectMake(0, 0, c.contentView.bounds.size.width, ip.section == 1 ? [HBCalendarView heightForWeeks:12] : 150); v.autoresizingMask = UIViewAutoresizingFlexibleWidth; [c.contentView addSubview:v]; }
     return c;
 }
 @end

@@ -5,7 +5,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 @implementation HBTodayViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; } return self; }
+- (id)init { if ((self = [super initWithStyle:UITableViewStylePlain])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; } return self; }
 - (void)dealloc { [due release]; [rest release]; [sheetHabit release]; [super dealloc]; }
 - (void)reload {
     NSMutableArray *d = [NSMutableArray array], *r = [NSMutableArray array];
@@ -16,7 +16,7 @@
     [self.tableView reloadData];
 }
 - (void)viewDidLoad {
-    [super viewDidLoad];
+    [super viewDidLoad]; HBSkinPaperTable(self.tableView);
     UILongPressGestureRecognizer *lp = [[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPress:)] autorelease];
     [self.tableView addGestureRecognizer:lp];
 }
@@ -30,21 +30,24 @@
 - (NSDictionary *)habitAt:(NSIndexPath *)ip { NSArray *a = ip.section == 0 ? due : rest; return ip.row < (NSInteger)[a count] ? [a objectAtIndex:ip.row] : nil; }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return [rest count] ? 2 : 1; }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return s == 0 ? MAX(1, (NSInteger)[due count]) : [rest count]; }
-- (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s { return s == 1 ? @"Not scheduled today" : nil; }
-- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s {
-    if (s != 0 || ![due count]) return s == 0 && ![[HBStore habits] count] ? @"Tap to add a habit, or let OpenRelay write a plan for a goal in the Habits tab." : nil;
+- (NSString *)footerText {
+    if (![due count]) return ![[HBStore habits] count] ? @"Tap to add a habit, or let OpenRelay write a plan for a goal in the Habits tab." : nil;
     int done = 0; for (NSDictionary *h in due) if ([HBStore isDone:h day:[HBStore today]]) done++;
     return done == (int)[due count] ? @"All done today. Hold a habit to skip or clear it." : [NSString stringWithFormat:@"%d of %lu done. Tap to check off, hold to skip.", done, (unsigned long)[due count]];
 }
+- (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s { return s == 1 ? HBPaperStrip(tv.bounds.size.width, 44, @"Not scheduled today", YES) : nil; }
+- (CGFloat)tableView:(UITableView *)tv heightForHeaderInSection:(NSInteger)s { return s == 1 ? 44 : 0; }
+- (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s { NSString *t = s == 0 ? [self footerText] : nil; return t ? HBPaperStrip(tv.bounds.size.width, 44, t, NO) : nil; }
+- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s { return s == 0 && [self footerText] ? 44 : 0; }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     NSDictionary *h = [self habitAt:ip];
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"t"];
-    if (!c) { c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"t"] autorelease]; c.detailTextLabel.textColor = [UIColor colorWithWhite:0.45 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; }
+    if (!c) { c = [[[HBPaperCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"t"] autorelease]; c.detailTextLabel.textColor = [UIColor colorWithWhite:0.45 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; c.detailTextLabel.font = [UIFont systemFontOfSize:12]; }
     if (!h) { c.textLabel.text = @"Add a habit"; c.textLabel.textColor = [UIColor colorWithRed:0x4D/255.0 green:0x7C/255.0 blue:0x0F/255.0 alpha:1]; c.detailTextLabel.text = @"Nothing is due today."; c.imageView.image = nil; c.accessoryType = UITableViewCellAccessoryNone; return c; }
     NSString *key = [HBStore today]; NSNumber *v = [HBStore value:h day:key]; double val = v ? [v doubleValue] : 0, target = [[h objectForKey:@"target"] doubleValue];
     BOOL done = [HBStore isDone:h day:key], skipped = v && val < 0;
-    c.imageView.image = HBCircle([HBStore color:h], target > 0 ? val / target : 0, done ? 1 : skipped ? 2 : 0, 34);
-    c.textLabel.text = [h objectForKey:@"name"]; c.textLabel.textColor = done || skipped ? [UIColor colorWithWhite:0.55 alpha:1] : [UIColor blackColor];
+    c.imageView.image = HBCircle([HBStore color:h], target > 0 ? val / target : 0, done ? 1 : skipped ? 2 : 0, 30);
+    c.textLabel.text = [h objectForKey:@"name"]; c.textLabel.textColor = done || skipped ? [UIColor colorWithWhite:0.55 alpha:1] : [UIColor colorWithRed:0.16 green:0.12 blue:0.08 alpha:1];
     NSString *type = [h objectForKey:@"type"]; int streak = [HBStore streak:h];
     NSString *progress = skipped ? @"Skipped today" : [type isEqualToString:@"check"] ? (done ? @"Done" : [HBStore describeSchedule:h])
         : [NSString stringWithFormat:@"%@ of %@ %@", v && val >= 0 ? [NSString stringWithFormat:@"%g", val] : @"0", [NSString stringWithFormat:@"%g", target], [h objectForKey:@"unit"]];
@@ -55,7 +58,7 @@
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
     NSDictionary *h = [self habitAt:ip];
-    if (!h) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [e release]; return; }
+    if (!h) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; return; }
     NSString *key = [HBStore today], *type = [h objectForKey:@"type"]; NSNumber *v = [HBStore value:h day:key]; double target = [[h objectForKey:@"target"] doubleValue];
     if ([type isEqualToString:@"check"]) { [HBStore setValue:[HBStore isDone:h day:key] ? nil : [NSNumber numberWithInt:1] habit:h day:key]; if (![HBStore isDone:h day:key]) {} else AudioServicesPlaySystemSound(1057); [self reload]; return; }
     if ([type isEqualToString:@"count"]) {
