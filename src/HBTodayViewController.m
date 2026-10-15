@@ -5,7 +5,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 @implementation HBTodayViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStylePlain])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; } return self; }
+- (id)init { if ((self = [super initWithStyle:UITableViewStylePlain])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; self.navigationItem.backBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Today" style:UIBarButtonItemStyleBordered target:nil action:nil] autorelease]; } return self; }
 - (void)dealloc { [due release]; [rest release]; [sheetHabit release]; [super dealloc]; }
 - (void)reload {
     NSMutableArray *d = [NSMutableArray array], *r = [NSMutableArray array];

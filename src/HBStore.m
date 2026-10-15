@@ -80,7 +80,7 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
         if (s == HBDone) { n++; if (n > best) best = n; } else if (s == HBMissed) n = 0;
         d = [self addDays:1 to:d];
     }
-    return best;
+    int cur = [self streak:h]; return best > cur ? best : cur;   // the running streak is a streak too
 }
 + (void)completion:(NSDictionary *)h days:(int)cnt done:(int *)done due:(int *)due {
     int dn = 0, du = 0; NSDate *d = [NSDate date];
