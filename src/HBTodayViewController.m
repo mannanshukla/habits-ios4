@@ -5,7 +5,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 @implementation HBTodayViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; self.navigationItem.leftBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Settings" style:UIBarButtonItemStyleBordered target:self action:@selector(openSettings)] autorelease]; } return self; }
+- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; } return self; }
 - (void)dealloc { [due release]; [rest release]; [sheetHabit release]; [super dealloc]; }
 - (void)reload {
     NSMutableArray *d = [NSMutableArray array], *r = [NSMutableArray array];
@@ -27,7 +27,6 @@
     if ([d boolForKey:@"hb_test_sheet"] && [due count]) { [d removeObjectForKey:@"hb_test_sheet"]; [d synchronize]; [self showSheetFor:[due objectAtIndex:0]]; }
 }
 - (void)viewWillDisappear:(BOOL)a { [super viewWillDisappear:a]; [[HBDrum shared] hide]; }
-- (void)openSettings { HBSettingsViewController *s = [[HBSettingsViewController alloc] init]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:s]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; [self presentModalViewController:n animated:YES]; [n release]; [s release]; }
 - (NSDictionary *)habitAt:(NSIndexPath *)ip { NSArray *a = ip.section == 0 ? due : rest; return ip.row < (NSInteger)[a count] ? [a objectAtIndex:ip.row] : nil; }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return [rest count] ? 2 : 1; }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return s == 0 ? MAX(1, (NSInteger)[due count]) : [rest count]; }
@@ -95,29 +94,4 @@
 }
 @end
 
-@implementation HBSettingsViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Settings"; self.navigationItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(done)] autorelease]; } return self; }
-- (void)dealloc { [keyField release]; [super dealloc]; }
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    keyField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 260, 30)];
-    keyField.placeholder = @"or_..."; keyField.text = [HBStore apiKey]; keyField.secureTextEntry = YES; keyField.font = [UIFont systemFontOfSize:15]; keyField.delegate = self;
-    keyField.autocorrectionType = UITextAutocorrectionTypeNo; keyField.autocapitalizationType = UITextAutocapitalizationTypeNone; keyField.returnKeyType = UIReturnKeyDone; keyField.clearButtonMode = UITextFieldViewModeWhileEditing; keyField.contentVerticalAlignment = UIControlContentVerticalAlignmentCenter;
-}
-- (void)save { [HBStore setApiKey:[keyField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]]; }
-- (void)done { [self save]; [self dismissModalViewControllerAnimated:YES]; }
-- (BOOL)textFieldShouldReturn:(UITextField *)tf { [tf resignFirstResponder]; return YES; }
-- (void)textFieldDidEndEditing:(UITextField *)tf { [self save]; }
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return 3; }
-- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return 1; }
-- (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s { return s == 0 ? @"OpenRelay API Key" : s == 1 ? @"Reminders" : @"About"; }
-- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s { return s == 0 ? @"Used to write habit plans and the weekly note. Your log never leaves this iPod." : s == 1 ? @"Reminders are local alarms set per habit. They fire even with no Wi-Fi." : @"Habits for iOS 4. Strength score after Loop Habit Tracker."; }
-- (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
-    UITableViewCell *c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil] autorelease];
-    c.selectionStyle = UITableViewCellSelectionStyleNone;
-    if (ip.section == 0) { keyField.frame = CGRectMake(10, 7, c.contentView.bounds.size.width - 20, 30); keyField.autoresizingMask = UIViewAutoresizingFlexibleWidth; [c.contentView addSubview:keyField]; }
-    else if (ip.section == 1) { NSUInteger n = [[[UIApplication sharedApplication] scheduledLocalNotifications] count]; c.textLabel.text = @"Scheduled"; c.detailTextLabel.text = [NSString stringWithFormat:@"%lu alarm%@", (unsigned long)n, n == 1 ? @"" : @"s"]; }
-    else { c.textLabel.text = @"Habits"; c.detailTextLabel.text = @"1.0"; }
-    return c;
-}
-@end
+
