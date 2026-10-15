@@ -16,6 +16,7 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
     return self;
 }
 - (void)dealloc { [habits release]; [super dealloc]; }
+- (void)viewDidLoad { [super viewDidLoad]; HBSkinPaperTable(self.tableView); }
 - (void)viewWillAppear:(BOOL)a { [super viewWillAppear:a]; [habits release]; habits = [[HBStore habits] retain]; [self.tableView reloadData]; }
 - (void)viewDidAppear:(BOOL)a {
     [super viewDidAppear:a];
@@ -31,11 +32,11 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return MAX(1, (NSInteger)[habits count]); }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"h"];
-    if (!c) { c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"h"] autorelease]; c.detailTextLabel.textColor = [UIColor colorWithWhite:0.45 alpha:1]; }
+    if (!c) { c = [[[HBPaperCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"h"] autorelease]; c.detailTextLabel.textColor = [UIColor colorWithWhite:0.45 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; c.detailTextLabel.font = [UIFont systemFontOfSize:12]; }
     if (![habits count]) { c.textLabel.text = @"No habits yet"; c.textLabel.textColor = [UIColor grayColor]; c.detailTextLabel.text = @"Tap + or Generate."; c.imageView.image = nil; c.accessoryType = UITableViewCellAccessoryNone; c.selectionStyle = UITableViewCellSelectionStyleNone; return c; }
     NSDictionary *h = [habits objectAtIndex:ip.row];
-    c.textLabel.text = [h objectForKey:@"name"]; c.textLabel.textColor = [UIColor blackColor]; c.selectionStyle = UITableViewCellSelectionStyleBlue;
-    c.imageView.image = HBCircle([HBStore color:h], 1, 1, 24);
+    c.textLabel.text = [h objectForKey:@"name"]; c.textLabel.textColor = [UIColor colorWithRed:0.16 green:0.12 blue:0.08 alpha:1]; c.selectionStyle = UITableViewCellSelectionStyleBlue;
+    c.imageView.image = HBCircle([HBStore color:h], 1, 3, 30);
     NSInteger rem = [[h objectForKey:@"reminder"] integerValue];
     NSString *goalStr = [h objectForKey:@"type"], *tgt = [goalStr isEqualToString:@"check"] ? @"" : [NSString stringWithFormat:@" · %g %@", [[h objectForKey:@"target"] doubleValue], [h objectForKey:@"unit"]];
     c.detailTextLabel.text = [NSString stringWithFormat:@"%@%@%@ · %.0f%%", [HBStore describeSchedule:h], tgt, rem >= 0 ? [NSString stringWithFormat:@" · %@", [HBStore describeTime:rem]] : @"", [HBStore strength:h] * 100];
@@ -124,13 +125,13 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
         else if (ip.row == 1) { c.textLabel.text = @"Target"; c.detailTextLabel.text = [NSString stringWithFormat:@"%g", [[habit objectForKey:@"target"] doubleValue]]; c.selectionStyle = UITableViewCellSelectionStyleBlue; c.accessoryType = UITableViewCellAccessoryDisclosureIndicator; }
         else { c.textLabel.text = @"Unit"; unitField.frame = CGRectMake(w - 170, 7, 160, 30); unitField.textAlignment = UITextAlignmentRight; unitField.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin; [c.contentView addSubview:unitField]; }
     } else if (ip.section == 2) {
-        CGFloat bw = 34, gap = (w - 7 * bw) / 8;
+        CGFloat cw = MIN(w, tv.bounds.size.width - 20), bw = 34, gap = (cw - 7 * bw) / 8;   // a fresh grouped cell reports the full 320 until it is laid out
         for (UIButton *b in dayButtons) { b.frame = CGRectMake(gap + b.tag * (bw + gap), 10, bw, bw); [c.contentView addSubview:b]; }
     } else if (ip.section == 3) {
         if (ip.row == 0) { c.textLabel.text = @"Remind me"; c.accessoryView = remind; }
         else { c.textLabel.text = @"Time"; c.detailTextLabel.text = [HBStore describeTime:[[habit objectForKey:@"reminder"] integerValue]]; c.selectionStyle = UITableViewCellSelectionStyleBlue; c.accessoryType = UITableViewCellAccessoryDisclosureIndicator; }
     } else if (ip.section == 4) {
-        CGFloat bw = 30, gap = (w - 6 * bw) / 7;
+        CGFloat bw = 30, gap = (MIN(w, tv.bounds.size.width - 20) - 6 * bw) / 7;
         for (UIButton *b in colorButtons) { b.frame = CGRectMake(gap + b.tag * (bw + gap), 12, bw, bw); [c.contentView addSubview:b]; }
     } else { c.textLabel.text = @"Delete Habit"; c.textLabel.textAlignment = UITextAlignmentCenter; c.textLabel.textColor = [UIColor colorWithRed:0.8 green:0.1 blue:0.1 alpha:1]; c.selectionStyle = UITableViewCellSelectionStyleBlue; }
     return c;

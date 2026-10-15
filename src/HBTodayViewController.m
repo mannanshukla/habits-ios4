@@ -29,7 +29,8 @@
 - (void)viewWillDisappear:(BOOL)a { [super viewWillDisappear:a]; [[HBDrum shared] hide]; }
 - (NSDictionary *)habitAt:(NSIndexPath *)ip { NSArray *a = ip.section == 0 ? due : rest; return ip.row < (NSInteger)[a count] ? [a objectAtIndex:ip.row] : nil; }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return [rest count] ? 2 : 1; }
-- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return s == 0 ? MAX(1, (NSInteger)[due count]) : [rest count]; }
+- (BOOL)isNote:(NSIndexPath *)ip { return ip.section == 0 && ip.row == MAX(1, (NSInteger)[due count]); }   // the summary line under the due list
+- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return s == 0 ? MAX(1, (NSInteger)[due count]) + ([self footerText] ? 1 : 0) : [rest count]; }
 - (NSString *)footerText {
     if (![due count]) return ![[HBStore habits] count] ? @"Tap to add a habit, or let OpenRelay write a plan for a goal in the Habits tab." : nil;
     int done = 0; for (NSDictionary *h in due) if ([HBStore isDone:h day:[HBStore today]]) done++;
@@ -37,9 +38,9 @@
 }
 - (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s { return s == 1 ? HBPaperStrip(tv.bounds.size.width, 44, @"Not scheduled today", YES) : nil; }
 - (CGFloat)tableView:(UITableView *)tv heightForHeaderInSection:(NSInteger)s { return s == 1 ? 44 : 0; }
-- (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s { NSString *t = s == 0 ? [self footerText] : nil; return t ? HBPaperStrip(tv.bounds.size.width, 44, t, NO) : nil; }
-- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s { return s == 0 && [self footerText] ? 44 : 0; }
+- (NSIndexPath *)tableView:(UITableView *)tv willSelectRowAtIndexPath:(NSIndexPath *)ip { return [self isNote:ip] ? nil : ip; }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
+    if ([self isNote:ip]) { UITableViewCell *n = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil] autorelease]; n.backgroundView = HBPaperStrip(tv.bounds.size.width, 44, [self footerText], NO); n.selectionStyle = UITableViewCellSelectionStyleNone; return n; }
     NSDictionary *h = [self habitAt:ip];
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"t"];
     if (!c) { c = [[[HBPaperCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"t"] autorelease]; c.detailTextLabel.textColor = [UIColor colorWithWhite:0.45 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; c.detailTextLabel.font = [UIFont systemFontOfSize:12]; }
@@ -56,7 +57,7 @@
     return c;
 }
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
-    [tv deselectRowAtIndexPath:ip animated:YES];
+    [tv deselectRowAtIndexPath:ip animated:YES]; if ([self isNote:ip]) return;
     NSDictionary *h = [self habitAt:ip];
     if (!h) { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:nil]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; return; }
     NSString *key = [HBStore today], *type = [h objectForKey:@"type"]; NSNumber *v = [HBStore value:h day:key]; double target = [[h objectForKey:@"target"] doubleValue];
@@ -75,12 +76,12 @@
         onDone:^{ [self reload]; }];
 }
 - (void)tableView:(UITableView *)tv accessoryButtonTappedForRowWithIndexPath:(NSIndexPath *)ip {
-    NSDictionary *h = [self habitAt:ip]; if (!h) return;
+    NSDictionary *h = [self isNote:ip] ? nil : [self habitAt:ip]; if (!h) return;
     HBDetailViewController *d = [[HBDetailViewController alloc] initWithHabit:h]; [self.navigationController pushViewController:d animated:YES]; [d release];
 }
 - (void)longPress:(UILongPressGestureRecognizer *)g {
     if (g.state != UIGestureRecognizerStateBegan) return;
-    NSIndexPath *ip = [self.tableView indexPathForRowAtPoint:[g locationInView:self.tableView]]; NSDictionary *h = ip ? [self habitAt:ip] : nil;
+    NSIndexPath *ip = [self.tableView indexPathForRowAtPoint:[g locationInView:self.tableView]]; NSDictionary *h = ip && ![self isNote:ip] ? [self habitAt:ip] : nil;
     if (h) [self showSheetFor:h];
 }
 - (void)showSheetFor:(NSDictionary *)h {

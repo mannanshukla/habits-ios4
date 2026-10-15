@@ -283,16 +283,17 @@ UIImage *HBCircle(UIColor *color, double progress, int state, CGFloat size) {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0);
     CGContextRef c = UIGraphicsGetCurrentContext(); CGRect r = CGRectInset(CGRectMake(0, 0, size, size), 2.5, 2.5);
     CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB(); CGFloat locs[2] = {0, 1};
-    if (state == 1) {
+    if (state == 3) r = CGRectInset(r, 5, 5);   // a plain glossy bead in the habit's colour, for lists
+    if (state == 1 || state == 3) {
         const CGFloat *k = CGColorGetComponents(color.CGColor); CGFloat r0 = k[0], g0 = k[1], b0 = CGColorGetNumberOfComponents(color.CGColor) >= 4 ? k[2] : k[0];
         CGContextSaveGState(c); CGContextSetShadowWithColor(c, CGSizeMake(0, 1), 1.5, [UIColor colorWithWhite:0 alpha:0.4].CGColor); [color set]; CGContextFillEllipseInRect(c, r); CGContextRestoreGState(c);
         CGContextSaveGState(c); CGContextAddEllipseInRect(c, r); CGContextClip(c);
         CGGradientRef g = CGGradientCreateWithColors(cs, (CFArrayRef)[NSArray arrayWithObjects:(id)[UIColor colorWithRed:MIN(1, r0 * 1.3 + 0.1) green:MIN(1, g0 * 1.3 + 0.1) blue:MIN(1, b0 * 1.3 + 0.1) alpha:1].CGColor, (id)[UIColor colorWithRed:r0 * 0.75 green:g0 * 0.75 blue:b0 * 0.75 alpha:1].CGColor, nil], locs);
         CGContextDrawLinearGradient(c, g, CGPointMake(0, r.origin.y), CGPointMake(0, CGRectGetMaxY(r)), 0); CGGradientRelease(g);
         [[UIColor colorWithWhite:1 alpha:0.35] set]; CGContextFillEllipseInRect(c, CGRectMake(r.origin.x + 3, r.origin.y + 1.5, r.size.width - 6, r.size.height * 0.42)); CGContextRestoreGState(c);
-        CGContextSaveGState(c); CGContextSetShadowWithColor(c, CGSizeMake(0, -1), 0, [UIColor colorWithWhite:0 alpha:0.35].CGColor);
+        if (state == 1) { CGContextSaveGState(c); CGContextSetShadowWithColor(c, CGSizeMake(0, -1), 0, [UIColor colorWithWhite:0 alpha:0.35].CGColor);
         [[UIColor whiteColor] set]; CGContextSetLineWidth(c, 2.8); CGContextSetLineCap(c, kCGLineCapRound); CGContextSetLineJoin(c, kCGLineJoinRound);
-        CGContextMoveToPoint(c, size * 0.28, size * 0.52); CGContextAddLineToPoint(c, size * 0.44, size * 0.68); CGContextAddLineToPoint(c, size * 0.72, size * 0.34); CGContextStrokePath(c); CGContextRestoreGState(c);
+        CGContextMoveToPoint(c, size * 0.28, size * 0.52); CGContextAddLineToPoint(c, size * 0.44, size * 0.68); CGContextAddLineToPoint(c, size * 0.72, size * 0.34); CGContextStrokePath(c); CGContextRestoreGState(c); }
     } else {
         // recessed ring: dark inner edge at the top, light edge at the bottom
         [[UIColor colorWithWhite:1 alpha:0.9] set]; CGContextSetLineWidth(c, 1.5); CGContextStrokeEllipseInRect(c, CGRectOffset(r, 0, 1));

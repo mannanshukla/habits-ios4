@@ -97,9 +97,9 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
     NSDate *monday = [self addDays:-[self weekdayIndex:[NSDate date]] to:[NSDate date]];
     monday = [self addDays:-7 * (weeks - 1) to:monday];
     for (int w = 0; w < weeks; w++) {
-        int done = 0, due = 0;
-        for (int i = 0; i < 7; i++) { NSDate *d = [self addDays:w * 7 + i to:monday]; for (NSDictionary *h in hs) { int s = [self state:h on:d]; if (s == HBDone) { done++; due++; } else if (s == HBMissed) due++; } }
-        [out addObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithDouble:[[self addDays:w * 7 to:monday] timeIntervalSince1970]], @"t", [NSNumber numberWithDouble:due ? 100.0 * done / due : 0], @"pct", [NSNumber numberWithInt:done], @"done", [NSNumber numberWithInt:due], @"due", nil]];
+        int done = 0, due = 0, open = 0;
+        for (int i = 0; i < 7; i++) { NSDate *d = [self addDays:w * 7 + i to:monday]; for (NSDictionary *h in hs) { int s = [self state:h on:d]; if (s == HBDone) { done++; due++; } else if (s == HBMissed) due++; else if (s == HBPending) open++; } }
+        [out addObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithDouble:[[self addDays:w * 7 to:monday] timeIntervalSince1970]], @"t", [NSNumber numberWithDouble:due ? 100.0 * done / due : 0], @"pct", [NSNumber numberWithInt:done], @"done", [NSNumber numberWithInt:due], @"due", [NSNumber numberWithInt:due + open], @"dueSoFar", nil]];
     }
     return out;
 }

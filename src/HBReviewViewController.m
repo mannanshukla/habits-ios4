@@ -14,7 +14,7 @@
     for (NSDictionary *w in weekly) { [xs addObject:[w objectForKey:@"t"]]; [ys addObject:[w objectForKey:@"pct"]]; }
     if (!chart) { chart = [[HBChartView alloc] initWithFrame:CGRectMake(0, 0, 300, 160)]; chart.fixedMax = 100; }
     NSDictionary *tw = [weekly lastObject];
-    [chart setXs:xs ys:ys bars:YES labels:nil callout:[NSString stringWithFormat:@"this week %d of %d", [[tw objectForKey:@"done"] intValue], [[tw objectForKey:@"due"] intValue]] tint:nil];
+    [chart setXs:xs ys:ys bars:YES labels:nil callout:[NSString stringWithFormat:@"this week %d of %d", [[tw objectForKey:@"done"] intValue], [[tw objectForKey:@"dueSoFar"] intValue]] tint:nil];
     NSMutableArray *fx = [NSMutableArray array], *fy = [NSMutableArray array];
     for (NSDictionary *p in [HBStore pomodorosByDay:14]) { [fx addObject:[p objectForKey:@"t"]]; [fy addObject:[p objectForKey:@"count"]]; }
     if (!focusChart) focusChart = [[HBChartView alloc] initWithFrame:CGRectMake(0, 0, 300, 140)];
