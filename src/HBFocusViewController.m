@@ -40,7 +40,10 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
 @implementation HBTomatoView
 - (id)initWithFrame:(CGRect)f { if ((self = [super initWithFrame:f])) { self.backgroundColor = [UIColor clearColor]; self.contentMode = UIViewContentModeRedraw; } return self; }
 - (void)dealloc { [text release]; [sub release]; [super dealloc]; }
-- (void)setProgress:(double)p isBreak:(BOOL)b text:(NSString *)t sub:(NSString *)s { progress = p; isBreak = b; [text release]; text = [t copy]; [sub release]; sub = [s copy]; [self setNeedsDisplay]; }
+- (void)setProgress:(double)p isBreak:(BOOL)b text:(NSString *)t sub:(NSString *)s {
+    if (p == progress && b == isBreak && [t isEqualToString:text] && [s isEqualToString:sub]) return;   // the clock ticks every second; an idle tomato looks the same, so don't redraw it
+    progress = p; isBreak = b; [text release]; text = [t copy]; [sub release]; sub = [s copy]; [self setNeedsDisplay];
+}
 - (void)drawRect:(CGRect)rect {
     CGContextRef c = UIGraphicsGetCurrentContext(); CGRect b = self.bounds;
     CGFloat size = MIN(b.size.width, b.size.height) - 24; CGRect r = CGRectMake((b.size.width - size) / 2, (b.size.height - size) / 2, size, size);
@@ -57,9 +60,10 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
     CGContextRestoreGState(c);
 }
 + (UIImage *)miniTomato:(BOOL)ripe {
+    static UIImage *cache[2] = {nil, nil}; if (cache[ripe ? 1 : 0]) return cache[ripe ? 1 : 0];   // only two looks; draw each once
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(22, 22), NO, 0);
     drawTomato(UIGraphicsGetCurrentContext(), CGRectMake(2, 1, 18, 18), ripe ? 1 : 0, !ripe);
-    UIImage *i = UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext(); return i;
+    UIImage *i = UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext(); cache[ripe ? 1 : 0] = [i retain]; return i;
 }
 @end
 
@@ -79,7 +83,7 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
     linkButton = [[UIButton buttonWithType:UIButtonTypeRoundedRect] retain]; linkButton.frame = CGRectMake(20, 258, w - 40, 36); linkButton.titleLabel.font = [UIFont systemFontOfSize:15];
     [linkButton addTarget:self action:@selector(pickLink) forControlEvents:UIControlEventTouchUpInside]; [root addSubview:linkButton];
     todayLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 302, w - 40, 18)]; todayLabel.font = [UIFont boldSystemFontOfSize:14]; todayLabel.textColor = [UIColor colorWithWhite:0.35 alpha:1]; todayLabel.backgroundColor = [UIColor clearColor]; todayLabel.textAlignment = UITextAlignmentCenter; [root addSubview:todayLabel];
-    dots = [[UIView alloc] initWithFrame:CGRectMake(20, 322, w - 40, 24)]; [root addSubview:dots];
+    dots = [[UIView alloc] initWithFrame:CGRectMake(20, 322, w - 40, 24)]; [root addSubview:dots]; dotsShown = -1;
 
     [self restore];
 }
@@ -90,7 +94,11 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
     if (mode && endTime > 0 && [[NSDate date] timeIntervalSince1970] >= endTime) [self finished];   // ended while we were away
 }
 - (void)persist { [[self d] setInteger:mode forKey:@"hb_pomo_mode"]; [[self d] setDouble:endTime forKey:@"hb_pomo_end"]; [[self d] setDouble:pausedRemaining forKey:@"hb_pomo_paused"]; [[self d] setInteger:total forKey:@"hb_pomo_total"]; [[self d] synchronize]; }
-- (void)viewWillAppear:(BOOL)a { [super viewWillAppear:a]; [self restore]; [self render]; if (!tick) tick = [[NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(render) userInfo:nil repeats:YES] retain]; }
+- (void)viewWillAppear:(BOOL)a { [super viewWillAppear:a]; [self restore]; [self render]; if (!tick) tick = [[NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(ticked) userInfo:nil repeats:YES] retain]; }
+- (void)ticked {   // nothing on screen while locked or switching away: only notice a finished tomato, draw when we're back
+    if ([[UIApplication sharedApplication] applicationState] != UIApplicationStateActive) { if (mode == 1 && pausedRemaining == 0 && [self remaining] <= 0) [self finished]; return; }
+    [self render];
+}
 - (void)viewDidAppear:(BOOL)a { [super viewDidAppear:a]; if ([[self d] boolForKey:@"hb_test_pomo"]) { [[self d] removeObjectForKey:@"hb_test_pomo"]; [[self d] synchronize]; mode = 1; total = 25 * 60; endTime = [[NSDate date] timeIntervalSince1970] + 9 * 60 + 41; pausedRemaining = 0; [self persist]; [self render]; } }
 - (void)viewWillDisappear:(BOOL)a { [super viewWillDisappear:a]; [tick invalidate]; [tick release]; tick = nil; [[HBDrum shared] hide]; }
 - (NSDictionary *)linkedHabit { NSString *hid = [[self d] stringForKey:@"hb_pomo_habit"]; return hid ? [HBStore habit:hid] : nil; }
@@ -101,13 +109,18 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
     NSString *sub = mode == 0 ? @"tap to start" : pausedRemaining > 0 ? @"paused · tap to resume" : mode == 1 ? @"focus · tap to pause" : @"break · tap to pause";
     [tomato setProgress:p isBreak:mode == 2 text:[NSString stringWithFormat:@"%d:%02d", (int)rem / 60, (int)rem % 60] sub:sub];
     if (mode == 1 && pausedRemaining == 0 && rem <= 0) [self finished];
-    NSDictionary *h = [self linkedHabit];
-    [linkButton setTitle:h ? [NSString stringWithFormat:@"Counts toward: %@", [h objectForKey:@"name"]] : @"Counts toward: nothing yet" forState:UIControlStateNormal];
-    NSInteger n = [HBStore pomodorosToday]; todayLabel.text = n == 0 ? @"No tomatoes yet today" : [NSString stringWithFormat:@"%ld tomato%@ today", (long)n, n == 1 ? @"" : @"es"];
-    for (UIView *v in [NSArray arrayWithArray:dots.subviews]) [v removeFromSuperview];
-    NSInteger show = MIN(12, MAX(n, 4)); CGFloat x = (dots.bounds.size.width - show * 24) / 2;
-    for (NSInteger i = 0; i < show; i++) { UIImageView *iv = [[[UIImageView alloc] initWithImage:[HBTomatoView miniTomato:i < n]] autorelease]; iv.frame = CGRectMake(x + i * 24, 1, 22, 22); [dots addSubview:iv]; }
-    length.enabled = mode == 0; self.navigationItem.rightBarButtonItem = mode == 0 ? nil : [[[UIBarButtonItem alloc] initWithTitle:@"Reset" style:UIBarButtonItemStyleBordered target:self action:@selector(reset)] autorelease];
+    // everything below changes rarely; touch the views only when it does
+    NSDictionary *h = [self linkedHabit]; NSString *lt = h ? [NSString stringWithFormat:@"Counts toward: %@", [h objectForKey:@"name"]] : @"Counts toward: nothing yet";
+    if (![lt isEqualToString:[linkButton titleForState:UIControlStateNormal]]) [linkButton setTitle:lt forState:UIControlStateNormal];
+    NSInteger n = [HBStore pomodorosToday]; NSString *tt = n == 0 ? @"No tomatoes yet today" : [NSString stringWithFormat:@"%ld tomato%@ today", (long)n, n == 1 ? @"" : @"es"];
+    if (![tt isEqualToString:todayLabel.text]) todayLabel.text = tt;
+    if (n != dotsShown) {
+        dotsShown = n; for (UIView *v in [NSArray arrayWithArray:dots.subviews]) [v removeFromSuperview];
+        NSInteger show = MIN(12, MAX(n, 4)); CGFloat x = (dots.bounds.size.width - show * 24) / 2;
+        for (NSInteger i = 0; i < show; i++) { UIImageView *iv = [[[UIImageView alloc] initWithImage:[HBTomatoView miniTomato:i < n]] autorelease]; iv.frame = CGRectMake(x + i * 24, 1, 22, 22); [dots addSubview:iv]; }
+    }
+    if (length.enabled != (mode == 0)) length.enabled = mode == 0;
+    if ((mode == 0) != (self.navigationItem.rightBarButtonItem == nil)) self.navigationItem.rightBarButtonItem = mode == 0 ? nil : [[[UIBarButtonItem alloc] initWithTitle:@"Reset" style:UIBarButtonItemStyleBordered target:self action:@selector(reset)] autorelease];
 }
 - (void)tapped {
     if (mode == 0) { mode = 1; total = [self minutes] * 60; endTime = [[NSDate date] timeIntervalSince1970] + total; pausedRemaining = 0; [self schedule:@"Tomato's done. Take a break."]; }

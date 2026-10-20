@@ -2,7 +2,7 @@
 #import "HBStore.h"
 #import "ORJSON.h"
 
-static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictionary *gLog = nil;   // in-memory copies; disk is only read once per launch
+static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictionary *gLog = nil, *gPomo = nil;   // in-memory copies; disk is only read once per launch
 
 @implementation HBStore
 + (NSString *)docs { return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0]; }
@@ -142,9 +142,9 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
         }
     }
 }
-+ (NSDictionary *)pomo { id a = [self readJSON:@"pomodoros.json"]; return [a isKindOfClass:[NSDictionary class]] ? a : [NSDictionary dictionary]; }
++ (NSDictionary *)pomo { if (!gPomo) { id a = [self readJSON:@"pomodoros.json"]; gPomo = [([a isKindOfClass:[NSDictionary class]] ? a : [NSDictionary dictionary]) retain]; } return gPomo; }   // the Focus tab asks every second
 + (NSInteger)pomodorosToday { return [[[self pomo] objectForKey:[self today]] integerValue]; }
-+ (void)addPomodoro { NSMutableDictionary *p = [NSMutableDictionary dictionaryWithDictionary:[self pomo]]; [p setObject:[NSNumber numberWithInteger:[[p objectForKey:[self today]] integerValue] + 1] forKey:[self today]]; [self writeJSON:p name:@"pomodoros.json"]; }
++ (void)addPomodoro { NSMutableDictionary *p = [NSMutableDictionary dictionaryWithDictionary:[self pomo]]; [p setObject:[NSNumber numberWithInteger:[[p objectForKey:[self today]] integerValue] + 1] forKey:[self today]]; [self writeJSON:p name:@"pomodoros.json"]; [gPomo release]; gPomo = [p copy]; }
 + (NSInteger)pomodorosInLastDays:(int)n { NSInteger t = 0; NSDate *d = [NSDate date]; for (int i = 0; i < n; i++) { t += [[[self pomo] objectForKey:[self dayKey:d]] integerValue]; d = [self addDays:-1 to:d]; } return t; }
 + (NSArray *)pomodorosByDay:(int)n {
     NSMutableArray *out = [NSMutableArray array]; NSDictionary *p = [self pomo];

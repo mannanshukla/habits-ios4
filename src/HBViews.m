@@ -145,19 +145,48 @@ void HBSkinNavBar(UINavigationBar *bar) {
     if ([bar respondsToSelector:@selector(setBackgroundImage:forBarMetrics:)]) { static UIImage *img = nil; if (!img) img = [HBLeatherImage(CGSizeMake(320, 44)) retain]; [bar performSelector:@selector(setBackgroundImage:forBarMetrics:) withObject:img withObject:0]; }   // iOS 5 API, absent from the 4.3 SDK
     bar.tintColor = [UIColor colorWithRed:0.40 green:0.27 blue:0.16 alpha:1];   // bar buttons in the leather's brown
 }
+// One rendered sheet per row size, shared by every row, strip and background of that size. A view with drawRect: gets its
+// own bitmap (a 320x44 row is 220 KB at 2x), and Today rebuilds its note strip on every check-off.
+static UIImage *paperImage(CGSize sz, BOOL selected) {
+    if (sz.width < 1 || sz.height < 1) return nil;
+    static NSMutableDictionary *cache = nil; if (!cache) cache = [[NSMutableDictionary alloc] init];
+    NSString *k = [NSString stringWithFormat:@"%gx%g%@", sz.width, sz.height, selected ? @"s" : @""];
+    UIImage *img = [cache objectForKey:k]; if (img) return img;
+    UIGraphicsBeginImageContextWithOptions(sz, YES, 0); CGContextRef c = UIGraphicsGetCurrentContext();
+    drawPaper(c, CGRectMake(0, 0, sz.width, sz.height), YES, YES);
+    if (selected) { [[UIColor colorWithWhite:0 alpha:0.06] set]; CGContextFillRect(c, CGRectMake(0, 0, sz.width, sz.height)); }
+    img = UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext();
+    if (img) [cache setObject:img forKey:k];
+    return img;
+}
+// The sheet behind the rows: the row image stacked down the table in sublayers, so rules and margin line up with the rows.
 @interface HBPaperBackground : UIView @end
 @implementation HBPaperBackground
-- (void)drawRect:(CGRect)r { CGContextRef c = UIGraphicsGetCurrentContext(); drawPaper(c, self.bounds, NO, YES); [ruleColor() set]; for (CGFloat y = RULE_H - 0.5; y < self.bounds.size.height; y += RULE_H) { CGContextMoveToPoint(c, 0, y); CGContextAddLineToPoint(c, self.bounds.size.width, y); } CGContextStrokePath(c); }
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGSize sz = self.bounds.size; UIImage *img = paperImage(CGSizeMake(sz.width, RULE_H), NO);
+    NSUInteger n = img ? (NSUInteger)ceilf(sz.height / RULE_H) : 0;
+    NSArray *have = [NSArray arrayWithArray:self.layer.sublayers ?: [NSArray array]];
+    [CATransaction begin]; [CATransaction setDisableActions:YES];
+    for (NSUInteger i = 0; i < MAX(n, [have count]); i++) {
+        if (i >= n) { [[have objectAtIndex:i] removeFromSuperlayer]; continue; }
+        CALayer *l = i < [have count] ? [have objectAtIndex:i] : nil;
+        if (!l) { l = [CALayer layer]; [self.layer addSublayer:l]; }
+        l.frame = CGRectMake(0, i * RULE_H, sz.width, RULE_H); l.contents = (id)img.CGImage; l.contentsScale = img.scale;
+    }
+    [CATransaction commit];
+}
 @end
 void HBSkinPaperTable(UITableView *tv) {
-    HBPaperBackground *bg = [[[HBPaperBackground alloc] initWithFrame:tv.bounds] autorelease]; bg.contentMode = UIViewContentModeRedraw; tv.backgroundView = bg; tv.backgroundColor = [UIColor clearColor];
+    HBPaperBackground *bg = [[[HBPaperBackground alloc] initWithFrame:tv.bounds] autorelease]; tv.backgroundView = bg; tv.backgroundColor = [UIColor clearColor];
     tv.separatorStyle = UITableViewCellSeparatorStyleNone; tv.rowHeight = RULE_H;
 }
 @interface HBPaperRow : UIView { BOOL selected; } @property (nonatomic, assign) BOOL selected; @end
 @implementation HBPaperRow
 @synthesize selected;
-- (id)initWithFrame:(CGRect)f { if ((self = [super initWithFrame:f])) { self.contentMode = UIViewContentModeRedraw; self.opaque = YES; } return self; }
-- (void)drawRect:(CGRect)r { CGContextRef c = UIGraphicsGetCurrentContext(); drawPaper(c, self.bounds, YES, YES); if (selected) { [[UIColor colorWithWhite:0 alpha:0.06] set]; CGContextFillRect(c, self.bounds); } }
+- (id)initWithFrame:(CGRect)f { if ((self = [super initWithFrame:f])) { self.opaque = YES; [self setNeedsLayout]; } return self; }
+- (void)setSelected:(BOOL)s { selected = s; [self setNeedsLayout]; }
+- (void)layoutSubviews { [super layoutSubviews]; UIImage *img = paperImage(self.bounds.size, selected); self.layer.contents = (id)img.CGImage; self.layer.contentsScale = img ? img.scale : 1; }
 @end
 UIView *HBPaperStrip(CGFloat width, CGFloat height, NSString *text, BOOL bold) {
     HBPaperRow *v = [[[HBPaperRow alloc] initWithFrame:CGRectMake(0, 0, width, height)] autorelease]; v.autoresizingMask = UIViewAutoresizingFlexibleWidth;

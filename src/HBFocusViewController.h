@@ -5,5 +5,5 @@
 + (UIImage *)miniTomato:(BOOL)ripe;
 @end
 @interface HBFocusViewController : UIViewController { HBTomatoView *tomato; UISegmentedControl *length; UIButton *linkButton; UILabel *todayLabel; UIView *dots; NSTimer *tick;
-    NSInteger mode; /* 0 idle, 1 work, 2 break */ NSTimeInterval endTime, pausedRemaining; NSInteger total; }
+    NSInteger mode; /* 0 idle, 1 work, 2 break */ NSTimeInterval endTime, pausedRemaining; NSInteger total, dotsShown; }
 @end
