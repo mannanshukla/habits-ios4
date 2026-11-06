@@ -62,7 +62,7 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
         if (h) habit = [[NSMutableDictionary alloc] initWithDictionary:h];
         else {
             NSMutableArray *days = [NSMutableArray array]; for (int i = 0; i < 7; i++) [days addObject:[NSNumber numberWithBool:YES]];
-            habit = [[NSMutableDictionary alloc] initWithObjectsAndKeys:[HBStore newId], @"id", @"", @"name", @"check", @"type", [NSNumber numberWithInt:1], @"target", @"", @"unit", days, @"days", [NSNumber numberWithInt:-1], @"reminder", [NSNumber numberWithInteger:[[HBStore habits] count] % 6], @"color", [HBStore today], @"created", nil];
+            habit = [[NSMutableDictionary alloc] initWithObjectsAndKeys:[HBStore uniqueId], @"id", @"", @"name", @"check", @"type", [NSNumber numberWithInt:1], @"target", @"", @"unit", days, @"days", [NSNumber numberWithInt:-1], @"reminder", [NSNumber numberWithInteger:[[HBStore habits] count] % 6], @"color", [HBStore today], @"created", nil];
         }
         self.navigationItem.leftBarButtonItem = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancel)] autorelease];
         self.navigationItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemSave target:self action:@selector(save)] autorelease];
@@ -70,13 +70,13 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
     return self;
 }
 - (void)dealloc { [habit release]; [nameField release]; [unitField release]; [type release]; [remind release]; [dayButtons release]; [colorButtons release]; [super dealloc]; }
-- (UITextField *)field:(NSString *)ph text:(NSString *)t {
+- (UITextField *)newField:(NSString *)ph text:(NSString *)t {
     UITextField *f = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 260, 30)]; f.placeholder = ph; f.text = t; f.font = [UIFont systemFontOfSize:16]; f.delegate = self; f.returnKeyType = UIReturnKeyDone; f.clearButtonMode = UITextFieldViewModeWhileEditing; f.contentVerticalAlignment = UIControlContentVerticalAlignmentCenter; f.autocapitalizationType = UITextAutocapitalizationTypeSentences; return f;
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
-    nameField = [self field:@"Drink water" text:[habit objectForKey:@"name"]];
-    unitField = [self field:@"glasses" text:[habit objectForKey:@"unit"]]; unitField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    nameField = [self newField:@"Drink water" text:[habit objectForKey:@"name"]];
+    unitField = [self newField:@"glasses" text:[habit objectForKey:@"unit"]]; unitField.autocapitalizationType = UITextAutocapitalizationTypeNone;
     type = [[UISegmentedControl alloc] initWithItems:[NSArray arrayWithObjects:@"Yes / No", @"Count", @"Measure", nil]]; type.segmentedControlStyle = UISegmentedControlStyleBar; type.tintColor = [UIColor colorWithWhite:0.35 alpha:1];
     NSString *t = [habit objectForKey:@"type"]; type.selectedSegmentIndex = [t isEqualToString:@"count"] ? 1 : [t isEqualToString:@"measure"] ? 2 : 0;
     [type addTarget:self action:@selector(typeChanged) forControlEvents:UIControlEventValueChanged];
@@ -155,47 +155,25 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 @end
 
 @implementation HBGenerateViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Generate"; } return self; }
-- (void)dealloc { [goal release]; [count release]; [status release]; [super dealloc]; }
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    goal = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 260, 30)]; goal.placeholder = @"Sleep better"; goal.font = [UIFont systemFontOfSize:16]; goal.delegate = self; goal.returnKeyType = UIReturnKeyGo; goal.clearButtonMode = UITextFieldViewModeWhileEditing; goal.contentVerticalAlignment = UIControlContentVerticalAlignmentCenter; goal.autocapitalizationType = UITextAutocapitalizationTypeSentences;
-    goal.text = [[NSUserDefaults standardUserDefaults] stringForKey:@"hb_goal"] ?: @"";
-    count = [[UISegmentedControl alloc] initWithItems:[NSArray arrayWithObjects:@"3 habits", @"5 habits", @"7 habits", nil]]; count.segmentedControlStyle = UISegmentedControlStyleBar; count.selectedSegmentIndex = 1; count.tintColor = [UIColor colorWithWhite:0.35 alpha:1];
-}
-- (void)viewDidAppear:(BOOL)a { [super viewDidAppear:a]; NSUserDefaults *d = [NSUserDefaults standardUserDefaults]; if ([d boolForKey:@"hb_test_gen"]) { [d removeObjectForKey:@"hb_test_gen"]; [d synchronize]; [self run]; return; } if (![goal.text length]) [goal becomeFirstResponder]; }
-- (BOOL)textFieldShouldReturn:(UITextField *)tf { [tf resignFirstResponder]; [self run]; return YES; }
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return 3; }
-- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return 1; }
-- (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s { return s == 0 ? @"What do you want?" : s == 1 ? @"How many" : nil; }
-- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s { return s == 0 ? @"An outcome, not a habit. \"Run a 10k in spring\", \"Less phone at night\", \"Stop being tired at 3pm\"." : s == 2 ? (status ?: @"OpenRelay turns the goal into small daily habits with targets, days and reminder times. You pick which to keep.") : nil; }
-- (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
-    UITableViewCell *c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil] autorelease]; c.selectionStyle = UITableViewCellSelectionStyleNone; CGFloat w = c.contentView.bounds.size.width;
-    if (ip.section == 0) { goal.frame = CGRectMake(10, 7, w - 20, 30); goal.autoresizingMask = UIViewAutoresizingFlexibleWidth; [c.contentView addSubview:goal]; }
-    else if (ip.section == 1) { count.frame = CGRectMake(8, 7, w - 16, 30); count.autoresizingMask = UIViewAutoresizingFlexibleWidth; [c.contentView addSubview:count]; }
-    else { c.selectionStyle = UITableViewCellSelectionStyleBlue; c.textLabel.text = busy ? @"Thinking..." : @"Write My Habits"; c.textLabel.textAlignment = UITextAlignmentCenter; c.textLabel.textColor = blue(); c.textLabel.font = [UIFont boldSystemFontOfSize:17]; }
-    return c;
-}
-- (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip { [tv deselectRowAtIndexPath:ip animated:YES]; if (ip.section == 2) [self run]; }
-- (void)run {
-    if (busy) return; NSString *g = [goal.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (![g length]) { [goal becomeFirstResponder]; return; }
-    [goal resignFirstResponder]; [[NSUserDefaults standardUserDefaults] setObject:g forKey:@"hb_goal"];
-    busy = YES; [status release]; status = nil; [self.tableView reloadData];
-    NSInteger n = [[NSArray arrayWithObjects:[NSNumber numberWithInt:3], [NSNumber numberWithInt:5], [NSNumber numberWithInt:7], nil] objectAtIndex:count.selectedSegmentIndex] ? (count.selectedSegmentIndex == 0 ? 3 : count.selectedSegmentIndex == 1 ? 5 : 7) : 5;
-    [self performSelectorInBackground:@selector(work:) withObject:[NSArray arrayWithObjects:g, [NSNumber numberWithInteger:n], nil]];
-}
-- (void)work:(NSArray *)a {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init]; NSString *err = nil;
-    NSArray *hs = [HBAI habitsForGoal:[a objectAtIndex:0] count:[[a objectAtIndex:1] integerValue] error:&err];
-    [self performSelectorOnMainThread:@selector(finished:) withObject:[NSArray arrayWithObjects:(hs ?: [NSArray array]), (err ?: @""), [a objectAtIndex:0], nil] waitUntilDone:NO];
-    [pool release];
-}
-- (void)finished:(NSArray *)r {
-    busy = NO; NSArray *hs = [r objectAtIndex:0];
-    if ([hs count]) { HBPickViewController *p = [[HBPickViewController alloc] initWithHabits:hs goal:[r objectAtIndex:2]]; [self.navigationController pushViewController:p animated:YES]; [p release]; [self.tableView reloadData]; }
-    else { [status release]; status = [([[r objectAtIndex:1] length] ? [r objectAtIndex:1] : @"Nothing came back.") copy]; [self.tableView reloadData]; }
-}
+- (id)init { if((self=[super initWithStyle:UITableViewStyleGrouped])) { self.title=@"Claude Plan";request=[CLAIRequest new];request.delegate=self; }return self; }
+- (void)saveInputs { if(!goal)return;NSUserDefaults *d=[NSUserDefaults standardUserDefaults];[d setObject:goal.text?:@"" forKey:@"hb_goal"];[d setObject:constraints.text?:@"" forKey:@"hb_constraints"];[d setInteger:count.selectedSegmentIndex forKey:@"hb_plan_count"];[d synchronize]; }
+- (void)releaseInputs { goal.delegate=constraints.delegate=nil;[goal release];goal=nil;[constraints release];constraints=nil;[count release];count=nil; }
+- (void)viewDidUnload { [request cancel];[self saveInputs];[self releaseInputs];[super viewDidUnload]; }
+- (void)viewWillDisappear:(BOOL)a { [self saveInputs];[request cancel];[goal resignFirstResponder];[constraints resignFirstResponder];[super viewWillDisappear:a]; }
+- (void)viewWillAppear:(BOOL)a { [super viewWillAppear:a];self.title=[NSString stringWithFormat:@"%@ Plan",[CLAIRequest providerName]];[self.tableView reloadData]; }
+- (void)dealloc { request.delegate=nil;[request cancel];[request release];[self releaseInputs];[pendingGoal release];[status release];[super dealloc]; }
+- (UITextField *)newField:(NSString *)placeholder { UITextField *f=[[UITextField alloc] initWithFrame:CGRectZero];f.placeholder=placeholder;f.font=[UIFont systemFontOfSize:15];f.delegate=self;f.returnKeyType=UIReturnKeyDone;f.clearButtonMode=UITextFieldViewModeWhileEditing;f.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;f.autocapitalizationType=UITextAutocapitalizationTypeSentences;return f; }
+- (void)viewDidLoad { [super viewDidLoad];NSUserDefaults *d=[NSUserDefaults standardUserDefaults];goal=[self newField:@"Sleep better, read more, finish a 10k…"];goal.text=[d stringForKey:@"hb_goal"]?:@"";constraints=[self newField:@"10 minutes after breakfast; busy evenings"];constraints.text=[d stringForKey:@"hb_constraints"]?:@"";count=[[UISegmentedControl alloc] initWithItems:[NSArray arrayWithObjects:@"3 habits",@"5 habits",@"7 habits",nil]];count.segmentedControlStyle=UISegmentedControlStyleBar;count.selectedSegmentIndex=MAX(0,MIN(2,[d integerForKey:@"hb_plan_count"]));count.tintColor=[UIColor colorWithWhite:.35 alpha:1]; }
+- (BOOL)textFieldShouldReturn:(UITextField *)f { [f resignFirstResponder];return YES; }
+- (BOOL)textField:(UITextField *)f shouldChangeCharactersInRange:(NSRange)r replacementString:(NSString *)t { return [f.text length]-r.length+[t length]<=500; }
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)t { return 4; }
+- (NSInteger)tableView:(UITableView *)t numberOfRowsInSection:(NSInteger)s { return 1; }
+- (NSString *)tableView:(UITableView *)t titleForHeaderInSection:(NSInteger)s { return s==0?@"Your goal":s==1?@"Time, schedule and barriers":s==2?@"How many":nil; }
+- (NSString *)tableView:(UITableView *)t titleForFooterInSection:(NSInteger)s { return s==3?(status?:[NSString stringWithFormat:@"%@ receives your goal, constraints and a summary of existing habits and progress. Review the suggestions and choose which to add.",[CLAIRequest providerName]]):nil; }
+- (UITableViewCell *)tableView:(UITableView *)t cellForRowAtIndexPath:(NSIndexPath *)p { UITableViewCell *c=[[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil] autorelease];c.selectionStyle=UITableViewCellSelectionStyleNone;CGFloat w=c.contentView.bounds.size.width;if(p.section<2) { UITextField *f=p.section==0?goal:constraints;f.enabled=!request.running;f.frame=CGRectMake(10,7,w-20,30);f.autoresizingMask=UIViewAutoresizingFlexibleWidth;[c.contentView addSubview:f]; }else if(p.section==2) { count.enabled=!request.running;count.frame=CGRectMake(8,7,w-16,30);count.autoresizingMask=UIViewAutoresizingFlexibleWidth;[c.contentView addSubview:count]; }else { c.selectionStyle=UITableViewCellSelectionStyleBlue;c.textLabel.text=request.running?@"Stop":@"Suggest My Habits";c.textLabel.textAlignment=UITextAlignmentCenter;c.textLabel.textColor=blue(); }return c; }
+- (void)tableView:(UITableView *)t didSelectRowAtIndexPath:(NSIndexPath *)p { [t deselectRowAtIndexPath:p animated:YES];if(p.section==3)[self run]; }
+- (void)run { if(request.running) { [request cancel];[self.tableView reloadData];return; }NSString *g=[goal.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];if(![g length]) { [goal becomeFirstResponder];return; }[goal resignFirstResponder];[constraints resignFirstResponder];[self saveInputs];[pendingGoal release];pendingGoal=[g copy];pendingCount=count.selectedSegmentIndex==0?3:count.selectedSegmentIndex==1?5:7;[status release];status=nil;[request startSystem:[HBAI habitSystem] user:[HBAI goalPrompt:g count:pendingCount constraints:constraints.text]];[self.tableView reloadData]; }
+- (void)aiRequest:(CLAIRequest *)r text:(NSString *)text error:(NSString *)error { if(r!=request)return;NSString *failure=error;NSArray *habits=text?[HBAI parseHabits:text count:pendingCount error:&failure]:nil;if([habits count]) { HBPickViewController *p=[[[HBPickViewController alloc] initWithHabits:habits goal:pendingGoal] autorelease];[self.navigationController pushViewController:p animated:YES]; }else { [status release];status=[(failure?:@"No plan came back.") copy]; }[self.tableView reloadData]; }
 @end
 
 @implementation HBPickViewController
@@ -223,12 +201,14 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES]; NSString *hid = [[proposed objectAtIndex:ip.row] objectForKey:@"id"];
     if ([chosen containsObject:hid]) [chosen removeObject:hid]; else [chosen addObject:hid];
+    self.navigationItem.rightBarButtonItem.enabled=[chosen count]>0;
     [tv reloadRowsAtIndexPaths:[NSArray arrayWithObject:ip] withRowAnimation:UITableViewRowAnimationNone];
 }
 - (void)add {
     NSMutableArray *all = [NSMutableArray arrayWithArray:[HBStore habits]];
     for (NSDictionary *h in proposed) if ([chosen containsObject:[h objectForKey:@"id"]]) [all addObject:h];
-    [HBStore saveHabits:all]; [self.navigationController popToRootViewControllerAnimated:YES];
+    if(![chosen count])return;
+    if(![HBStore saveHabits:all]) { [[[[UIAlertView alloc] initWithTitle:@"Could not save" message:@"Your habits were not changed. Free some storage and try again." delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] autorelease] show];return; }[chosen removeAllObjects];self.navigationItem.rightBarButtonItem.enabled=NO;[self.navigationController popToRootViewControllerAnimated:YES];
 }
 @end
 

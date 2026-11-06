@@ -2,10 +2,13 @@
 #import "HBHabitsViewController.h"
 #import "HBStore.h"
 #import "HBAI.h"
+#import "CLCoachViewController.h"
 
 @implementation HBReviewViewController
-- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Review"; self.tabBarItem.title = @"Review"; } return self; }
-- (void)dealloc { [habits release]; [weekly release]; [chart release]; [focusChart release]; [note release]; [error release]; [super dealloc]; }
+- (id)init { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { self.title = @"Review"; self.tabBarItem.title = @"Review"; request=[CLAIRequest new];request.delegate=self;self.navigationItem.rightBarButtonItem=[[[UIBarButtonItem alloc] initWithTitle:@"Coach" style:UIBarButtonItemStyleBordered target:self action:@selector(coach)] autorelease]; } return self; }
+- (void)coach { CLCoachViewController *c=[[[CLCoachViewController alloc] initWithSource:@"Habits" context:[HBAI summary] system:[HBAI weeklySystem]] autorelease];[self.navigationController pushViewController:c animated:YES]; }
+- (void)viewWillDisappear:(BOOL)a { [request cancel];[super viewWillDisappear:a]; }
+- (void)dealloc { request.delegate=nil;[request cancel];[request release]; [habits release]; [weekly release]; [chart release]; [focusChart release]; [note release]; [error release]; [super dealloc]; }
 - (void)viewWillAppear:(BOOL)a {
     [super viewWillAppear:a];
     [habits release]; habits = [[HBStore habits] retain]; [weekly release]; weekly = [[HBStore weeklyCompletion:10] retain];
@@ -26,7 +29,7 @@
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return 4; }
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return s == 0 ? 1 : s == 1 ? MAX(1, (NSInteger)[habits count]) : s == 2 ? 2 : (note ? 2 : 1); }
 - (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s { return s == 0 ? @"Done per week" : s == 1 ? @"Strength" : s == 2 ? @"Focus, last 14 days" : @"This week's note"; }
-- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s { return s == 3 ? (error ?: @"OpenRelay reads your week and writes a few honest sentences. Nothing else leaves the iPod.") : nil; }
+- (NSString *)tableView:(UITableView *)tv titleForFooterInSection:(NSInteger)s { return s == 3 ? (error ?: [NSString stringWithFormat:@"%@ receives your goal, constraints and 7/30-day habit totals only when you request a note. Suggestions do not change your habits.",[CLAIRequest providerName]]) : nil; }
 - (CGFloat)noteHeight { return note ? [note sizeWithFont:[UIFont systemFontOfSize:15] constrainedToSize:CGSizeMake(270, 2000) lineBreakMode:UILineBreakModeWordWrap].height + 24 : 44; }
 - (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip { return ip.section == 0 ? 160 : ip.section == 2 && ip.row == 0 ? 140 : ip.section == 3 && ip.row == 0 && note ? [self noteHeight] : 44; }
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -50,7 +53,7 @@
         UITableViewCell *n = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil] autorelease]; n.selectionStyle = UITableViewCellSelectionStyleNone;
         n.textLabel.text = note; n.textLabel.numberOfLines = 0; n.textLabel.font = [UIFont systemFontOfSize:15]; n.textLabel.lineBreakMode = UILineBreakModeWordWrap; return n;
     }
-    c.textLabel.text = busy ? @"Writing..." : note ? @"Write it again" : @"Write This Week's Note"; c.textLabel.textAlignment = UITextAlignmentCenter; c.textLabel.textColor = [UIColor colorWithRed:0x4D/255.0 green:0x7C/255.0 blue:0x0F/255.0 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; c.selectionStyle = UITableViewCellSelectionStyleBlue;
+    c.textLabel.text = request.running ? @"Stop" : note ? @"Write it again" : @"Write This Week's Note"; c.textLabel.textAlignment = UITextAlignmentCenter; c.textLabel.textColor = [UIColor colorWithRed:0x4D/255.0 green:0x7C/255.0 blue:0x0F/255.0 alpha:1]; c.textLabel.font = [UIFont boldSystemFontOfSize:17]; c.selectionStyle = UITableViewCellSelectionStyleBlue;
     return c;
 }
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
@@ -58,11 +61,6 @@
     if (ip.section == 1 && [habits count]) { HBDetailViewController *d = [[HBDetailViewController alloc] initWithHabit:[habits objectAtIndex:ip.row]]; [self.navigationController pushViewController:d animated:YES]; [d release]; }
     else if (ip.section == 3 && (ip.row == 1 || !note)) [self writeNote];
 }
-- (void)writeNote { if (busy) return; busy = YES; [error release]; error = nil; [self.tableView reloadData]; [self performSelectorInBackground:@selector(work) withObject:nil]; }
-- (void)work { NSAutoreleasePool *p = [[NSAutoreleasePool alloc] init]; NSString *err = nil; NSString *t = [HBAI weeklyNoteWithError:&err]; [self performSelectorOnMainThread:@selector(finished:) withObject:[NSArray arrayWithObjects:(t ?: @""), (err ?: @""), nil] waitUntilDone:NO]; [p release]; }
-- (void)finished:(NSArray *)r {
-    busy = NO; NSString *t = [r objectAtIndex:0];
-    if ([t length]) { [HBStore setNote:t]; [note release]; note = [t copy]; } else { [error release]; error = [([[r objectAtIndex:1] length] ? [r objectAtIndex:1] : @"No note came back.") copy]; }
-    [self.tableView reloadData];
-}
+- (void)writeNote { if(request.running) { [request cancel];[self.tableView reloadData];return; }[error release];error=nil;[request startSystem:[HBAI weeklySystem] user:[HBAI summary]];[self.tableView reloadData]; }
+- (void)aiRequest:(CLAIRequest *)r text:(NSString *)text error:(NSString *)failure { if(r!=request)return;if([text length]) { [HBStore setNote:text];[note release];note=[text copy]; }else { [error release];error=[(failure?:@"No note came back.") copy]; }[self.tableView reloadData]; }
 @end

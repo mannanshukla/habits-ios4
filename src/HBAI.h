@@ -1,7 +1,8 @@
 #import <Foundation/Foundation.h>
-// Non-streaming OpenRelay completions. Synchronous; call off the main thread.
 @interface HBAI : NSObject
-+ (NSString *)complete:(NSString *)system user:(NSString *)user error:(NSString **)err;
-+ (NSArray *)habitsForGoal:(NSString *)goal count:(NSInteger)n error:(NSString **)err;   // validated habit dicts, not yet saved
-+ (NSString *)weeklyNoteWithError:(NSString **)err;
++ (NSString *)habitSystem;
++ (NSString *)goalPrompt:(NSString *)goal count:(NSInteger)n constraints:(NSString *)constraints;
++ (NSArray *)parseHabits:(NSString *)text count:(NSInteger)n error:(NSString **)error;
++ (NSString *)summary;
++ (NSString *)weeklySystem;
 @end

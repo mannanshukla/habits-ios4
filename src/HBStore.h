@@ -1,9 +1,10 @@
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+@class UIColor;
 // Habits + log live in Documents as JSON. Habit: {id, name, type: check|count|measure, target, unit, days:[7 ints Mon..Sun], reminder (minutes from midnight or -1), color (0-5), created (dayKey), why}
 // Log: {habitId: {dayKey: value}}  value -1 means skipped.
 enum { HBNotDue = 0, HBDone = 1, HBMissed = 2, HBSkipped = 3, HBPending = 4, HBBeforeStart = 5 };
 @interface HBStore : NSObject
-+ (NSArray *)habits; + (void)saveHabits:(NSArray *)h;
++ (NSArray *)habits; + (BOOL)saveHabits:(NSArray *)h;
 + (NSDictionary *)habit:(NSString *)hid;
 + (void)upsertHabit:(NSDictionary *)h; + (void)deleteHabit:(NSString *)hid;
 + (NSDictionary *)log; + (void)saveLog:(NSDictionary *)l;
@@ -20,7 +21,7 @@ enum { HBNotDue = 0, HBDone = 1, HBMissed = 2, HBSkipped = 3, HBPending = 4, HBB
 + (void)completion:(NSDictionary *)h days:(int)n done:(int *)done due:(int *)due;
 + (NSArray *)dayStates:(NSDictionary *)h from:(NSDate *)start to:(NSDate *)end;   // NSNumbers of HB*, oldest first
 + (NSArray *)weeklyCompletion:(int)weeks;                             // oldest first: {t, pct, done, due}
-+ (NSString *)newId;
++ (NSString *)uniqueId;
 + (NSString *)apiKey; + (void)setApiKey:(NSString *)k;
 + (NSString *)note; + (void)setNote:(NSString *)n;                     // cached weekly note (keyed by week in prefs)
 + (void)scheduleReminders;

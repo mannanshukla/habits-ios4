@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
 #import "HBViews.h"
-@interface HBReviewViewController : UITableViewController { NSArray *habits, *weekly; HBChartView *chart, *focusChart; BOOL busy; NSString *note, *error; }
+#import "CLAIRequest.h"
+@interface HBReviewViewController : UITableViewController <CLAIRequestDelegate> { NSArray *habits, *weekly; HBChartView *chart, *focusChart; CLAIRequest *request; NSString *note, *error; }
 @end

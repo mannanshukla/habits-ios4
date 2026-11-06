@@ -9,7 +9,7 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
 + (id)readJSON:(NSString *)name { NSString *t = [NSString stringWithContentsOfFile:[[self docs] stringByAppendingPathComponent:name] encoding:NSUTF8StringEncoding error:nil]; return t ? [ORJSON parse:t] : nil; }
 + (void)writeJSON:(id)obj name:(NSString *)name { [[ORJSON stringify:obj] writeToFile:[[self docs] stringByAppendingPathComponent:name] atomically:YES encoding:NSUTF8StringEncoding error:nil]; }
 + (NSArray *)habits { if (!gHabits) { id a = [self readJSON:@"habits.json"]; gHabits = [([a isKindOfClass:[NSArray class]] ? a : [NSArray array]) retain]; } return gHabits; }
-+ (void)saveHabits:(NSArray *)h { [gHabits release]; gHabits = [[NSArray alloc] initWithArray:h]; [self writeJSON:gHabits name:@"habits.json"]; [self scheduleReminders]; }
++ (BOOL)saveHabits:(NSArray *)h { if(![[ORJSON stringify:h] writeToFile:[[self docs] stringByAppendingPathComponent:@"habits.json"] atomically:YES encoding:NSUTF8StringEncoding error:NULL])return NO;[gHabits release];gHabits=[[NSArray alloc] initWithArray:h];[self scheduleReminders];return YES; }
 + (NSDictionary *)habit:(NSString *)hid { for (NSDictionary *h in [self habits]) if ([[h objectForKey:@"id"] isEqualToString:hid]) return h; return nil; }
 + (void)upsertHabit:(NSDictionary *)h {
     NSMutableArray *all = [NSMutableArray arrayWithArray:[self habits]]; BOOL found = NO;
@@ -103,7 +103,7 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
     }
     return out;
 }
-+ (NSString *)newId { CFUUIDRef u = CFUUIDCreate(NULL); NSString *s = [(NSString *)CFUUIDCreateString(NULL, u) autorelease]; CFRelease(u); return s; }
++ (NSString *)uniqueId { CFUUIDRef u = CFUUIDCreate(NULL); NSString *s = [(NSString *)CFUUIDCreateString(NULL, u) autorelease]; CFRelease(u); return s; }
 + (NSUserDefaults *)d { return [NSUserDefaults standardUserDefaults]; }
 + (NSString *)apiKey { return [[self d] stringForKey:@"hb_api_key"] ?: @""; }
 + (void)setApiKey:(NSString *)k { [[self d] setObject:k forKey:@"hb_api_key"]; [[self d] synchronize]; }

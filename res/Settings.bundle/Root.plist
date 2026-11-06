@@ -5,8 +5,70 @@
 	<key>PreferenceSpecifiers</key>
 	<array>
 		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>AI Coach</string>
 			<key>FooterText</key>
-			<string>Habit generation and the weekly note use OpenRelay; the key is created at openrelay.inc.</string>
+			<string>Requests send your question and a bounded progress summary to the selected provider. Plans are reviewed before adding. Keys stay in this app’s Settings.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Title</key>
+			<string>Provider</string>
+			<key>Key</key>
+			<string>ai_provider</string>
+			<key>DefaultValue</key>
+			<string>claude</string>
+			<key>Titles</key>
+			<array>
+				<string>Claude</string>
+				<string>OpenRelay</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<string>claude</string>
+				<string>openrelay</string>
+			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+			<key>Title</key>
+			<string>Claude API key</string>
+			<key>Key</key>
+			<string>ai_claude_key</string>
+			<key>DefaultValue</key>
+			<string></string>
+			<key>IsSecure</key>
+			<true/>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+			<key>Title</key>
+			<string>Claude model</string>
+			<key>Key</key>
+			<string>ai_claude_model</string>
+			<key>DefaultValue</key>
+			<string>claude-sonnet-5-5</string>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+			<key>KeyboardType</key>
+			<string>Alphabet</string>
+		</dict>
+		<dict>
+			<key>FooterText</key>
+			<string>Used only when Provider is set to OpenRelay. Your existing OpenRelay key is preserved.</string>
 			<key>Title</key>
 			<string>OpenRelay</string>
 			<key>Type</key>
@@ -38,7 +100,7 @@
 		</dict>
 		<dict>
 			<key>DefaultValue</key>
-			<string>1.1</string>
+			<string>2.0</string>
 			<key>Key</key>
 			<string>hb_version</string>
 			<key>Title</key>
