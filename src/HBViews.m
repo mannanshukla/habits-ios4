@@ -1,3 +1,4 @@
+#import "JRMaterials.h"
 #import "HBViews.h"
 #import "HBStore.h"
 #import <QuartzCore/QuartzCore.h>
@@ -118,8 +119,10 @@ static void graphPaper(CGContextRef c, CGRect b) {   // inset panel with a fine 
 #define PAPER_W 320
 #define RULE_H 44
 #define MARGIN_X 50
-static UIColor *paperColor(void) { return [UIColor colorWithRed:0.985 green:0.965 blue:0.90 alpha:1]; }
-static UIColor *ruleColor(void) { return [UIColor colorWithRed:0.70 green:0.80 blue:0.90 alpha:1]; }
+static UIColor *paperColor(void) {
+return JRPaper();
+}
+static UIColor *ruleColor(void) { return JRRule(); }
 static UIColor *marginColor(void) { return [UIColor colorWithRed:0.90 green:0.45 blue:0.45 alpha:1]; }
 static void drawPaper(CGContextRef c, CGRect r, BOOL rule, BOOL margin) {
     [paperColor() set]; CGContextFillRect(c, r);
@@ -142,8 +145,7 @@ UIImage *HBLeatherImage(CGSize sz) {
     UIImage *img = UIGraphicsGetImageFromCurrentImageContext(); UIGraphicsEndImageContext(); return img;
 }
 void HBSkinNavBar(UINavigationBar *bar) {
-    if ([bar respondsToSelector:@selector(setBackgroundImage:forBarMetrics:)]) { static UIImage *img = nil; if (!img) img = [HBLeatherImage(CGSizeMake(320, 44)) retain]; [bar performSelector:@selector(setBackgroundImage:forBarMetrics:) withObject:img withObject:0]; }   // iOS 5 API, absent from the 4.3 SDK
-    bar.tintColor = [UIColor colorWithRed:0.40 green:0.27 blue:0.16 alpha:1];   // bar buttons in the leather's brown
+    JRStyleBar(bar,0x765337);bar.tintColor=[UIColor colorWithRed:.40 green:.27 blue:.16 alpha:1];
 }
 // One rendered sheet per row size, shared by every row, strip and background of that size. A view with drawRect: gets its
 // own bitmap (a 320x44 row is 220 KB at 2x), and Today rebuilds its note strip on every check-off.
