@@ -180,8 +180,7 @@ static UIImage *paperImage(CGSize sz, BOOL selected) {
 }
 @end
 void HBSkinPaperTable(UITableView *tv) {
-    HBPaperBackground *bg = [[[HBPaperBackground alloc] initWithFrame:tv.bounds] autorelease]; tv.backgroundView = bg; tv.backgroundColor = [UIColor clearColor];
-    tv.separatorStyle = UITableViewCellSeparatorStyleNone; tv.rowHeight = RULE_H;
+tv.backgroundView=nil;tv.backgroundColor=JRPaper();tv.separatorStyle=UITableViewCellSeparatorStyleSingleLine;tv.separatorColor=JRRule();tv.rowHeight=RULE_H;
 }
 @interface HBPaperRow : UIView { BOOL selected; } @property (nonatomic, assign) BOOL selected; @end
 @implementation HBPaperRow
@@ -197,20 +196,8 @@ UIView *HBPaperStrip(CGFloat width, CGFloat height, NSString *text, BOOL bold) {
     [v addSubview:l]; return v;
 }
 @implementation HBPaperCell
-- (id)initWithStyle:(UITableViewCellStyle)st reuseIdentifier:(NSString *)rid {
-    if ((self = [super initWithStyle:st reuseIdentifier:rid])) {
-        self.backgroundView = [[[HBPaperRow alloc] initWithFrame:CGRectMake(0, 0, PAPER_W, RULE_H)] autorelease];
-        HBPaperRow *sel = [[[HBPaperRow alloc] initWithFrame:CGRectMake(0, 0, PAPER_W, RULE_H)] autorelease]; sel.selected = YES; self.selectedBackgroundView = sel;
-        self.backgroundColor = [UIColor clearColor]; self.textLabel.backgroundColor = [UIColor clearColor]; self.detailTextLabel.backgroundColor = [UIColor clearColor];
-    }
-    return self;
-}
-- (void)layoutSubviews {
-    [super layoutSubviews]; CGFloat w = self.contentView.bounds.size.width;
-    self.imageView.frame = CGRectMake(9, 7, 30, 30);
-    CGFloat x = MARGIN_X + 14, tw = w - x - 4;
-    if (self.detailTextLabel.text.length) { self.textLabel.frame = CGRectMake(x, 4, tw, 20); self.detailTextLabel.frame = CGRectMake(x, 24, tw, 15); }
-    else self.textLabel.frame = CGRectMake(x, 0, tw, RULE_H);
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier {
+ if((self=[super initWithStyle:style reuseIdentifier:identifier])) { self.backgroundColor=JRPaper();self.textLabel.backgroundColor=[UIColor clearColor];self.detailTextLabel.backgroundColor=[UIColor clearColor]; }return self;
 }
 @end
 
