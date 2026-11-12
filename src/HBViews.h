@@ -1,11 +1,17 @@
 #import <UIKit/UIKit.h>
 // Shared drawing: line/bar chart, the 12-week heatmap, the slide-up drum picker, and check circles.
-@interface HBChartView : UIView { NSArray *xs, *ys, *labels; BOOL bars; NSString *callout; UIColor *tint; double fixedMax; }
+// A view that draws itself. Its bitmap (up to 1.4 MB at 2x) is let go when the app leaves (at once if it is out of
+// sight, otherwise once the snapshot is taken) or on a memory warning, and drawn again when it is next seen.
+@interface HBDrawingView : UIView @end
+void HBSleepDrawings(BOOL evenOnScreen);
+void HBWakeDrawings(void);   // on coming forward
+void HBPurge(void);          // shared images, and the drum when it is put away: on entering the background and on memory warnings
+@interface HBChartView : HBDrawingView { NSArray *xs, *ys, *labels; BOOL bars; NSString *callout; UIColor *tint; double fixedMax; }
 @property (nonatomic, assign) double fixedMax;   // > 0 pins the top of the y axis (100 for percent charts)
 - (void)setXs:(NSArray *)x ys:(NSArray *)y bars:(BOOL)b labels:(NSArray *)l callout:(NSString *)c tint:(UIColor *)t;
 @end
 // Wall calendar on paper: one row per week, a red X on every done day. The "don't break the chain" look of 2011.
-@interface HBCalendarView : UIView { NSArray *states; NSDate *start; UIColor *tint; }
+@interface HBCalendarView : HBDrawingView { NSArray *states; NSDate *start; UIColor *tint; }
 - (void)setStates:(NSArray *)s start:(NSDate *)d tint:(UIColor *)t;   // states oldest first, starting on a Monday
 + (CGFloat)heightForWeeks:(int)w;
 @end
@@ -22,5 +28,6 @@ typedef void (^HBDrumChange)(NSInteger row);
 - (void)showTimeInView:(UIView *)host title:(NSString *)t minutes:(NSInteger)m onChange:(HBDrumChange)c onDone:(void (^)(void))d;
 - (void)hide;
 - (BOOL)visible;
+- (void)purge;   // lets go of the pickers and the last callbacks unless it is showing
 @end
 UIImage *HBCircle(UIColor *color, double progress, int state, CGFloat size);   // state: 0 open, 1 done, 2 skipped

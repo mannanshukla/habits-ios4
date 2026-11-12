@@ -41,64 +41,75 @@ static NSArray *gPalette = nil; static NSArray *gHabits = nil; static NSDictiona
 + (BOOL)isDue:(NSDictionary *)h on:(NSDate *)d { NSArray *days = [h objectForKey:@"days"]; int i = [self weekdayIndex:d]; return [days count] == 7 ? [[days objectAtIndex:i] boolValue] : YES; }
 + (double)target:(NSDictionary *)h { double t = [[h objectForKey:@"target"] doubleValue]; return t > 0 ? t : 1; }
 + (BOOL)isDone:(NSDictionary *)h day:(NSString *)key { NSNumber *v = [self value:h day:key]; if (!v || [v doubleValue] < 0) return NO; return [v doubleValue] >= [self target:h]; }
-+ (int)state:(NSDictionary *)h on:(NSDate *)d {
-    NSString *key = [self dayKey:d];
++ (int)state:(NSDictionary *)h on:(NSDate *)d { return [self state:h on:d key:[self dayKey:d] today:[self today]]; }
+// The walks below run a day at a time over months: they format today's key once rather than twice a day walked,
+// and drain a pool each day, since every step makes a few dates and strings.
++ (int)state:(NSDictionary *)h on:(NSDate *)d key:(NSString *)key today:(NSString *)today {
     if ([key compare:[h objectForKey:@"created"] ?: @""] == NSOrderedAscending) return HBBeforeStart;
-    if ([key compare:[self today]] == NSOrderedDescending) return HBNotDue;   // the future is not a miss
+    if ([key compare:today] == NSOrderedDescending) return HBNotDue;   // the future is not a miss
     NSNumber *v = [self value:h day:key];
     if (v && [v doubleValue] < 0) return HBSkipped;
     if (![self isDue:h on:d]) return [self isDone:h day:key] ? HBDone : HBNotDue;
     if ([self isDone:h day:key]) return HBDone;
-    return [key isEqualToString:[self today]] ? HBPending : HBMissed;
+    return [key isEqualToString:today] ? HBPending : HBMissed;
 }
++ (NSDate *)step:(NSDate *)d by:(int)n { NSDate *next = [[self addDays:n to:d] retain]; [d release]; return next; }   // for a retained walker, across pools
 + (NSDate *)createdDate:(NSDictionary *)h { NSDate *d = [self dateFromKey:[h objectForKey:@"created"] ?: @""]; return d ?: [NSDate date]; }
 + (double)strength:(NSDictionary *)h {
     int dueDays = 0; for (NSNumber *x in [h objectForKey:@"days"]) if ([x boolValue]) dueDays++;
     double freq = dueDays ? dueDays / 7.0 : 1.0, m = pow(0.5, sqrt(freq) / 13.0), score = 0;
-    NSDate *d = [self createdDate:h], *now = [NSDate date];
-    while ([[self dayKey:d] compare:[self dayKey:now]] != NSOrderedDescending) {
-        int s = [self state:h on:d];
+    NSDate *d = [[self createdDate:h] retain]; NSString *end = [self dayKey:[NSDate date]], *today = [self today];
+    for (BOOL more = YES; more; ) @autoreleasepool {
+        NSString *key = [self dayKey:d]; if (!(more = [key compare:end] != NSOrderedDescending)) break;
+        int s = [self state:h on:d key:key today:today];
         if (s == HBDone) score = score * m + (1 - m); else if (s == HBMissed) score = score * m;
-        d = [self addDays:1 to:d];
+        d = [self step:d by:1];
     }
-    return score;
+    [d release]; return score;
 }
 + (int)streak:(NSDictionary *)h {
-    int n = 0; NSDate *d = [NSDate date];
-    int s0 = [self state:h on:d]; if (s0 == HBPending || s0 == HBNotDue || s0 == HBSkipped) d = [self addDays:-1 to:d];   // today still open
-    for (int i = 0; i < 3660; i++) {
-        int s = [self state:h on:d];
+    int n = 0; NSDate *d = [[NSDate date] retain]; NSString *today = [self today];
+    int s0 = [self state:h on:d key:[self dayKey:d] today:today]; if (s0 == HBPending || s0 == HBNotDue || s0 == HBSkipped) d = [self step:d by:-1];   // today still open
+    for (int i = 0; i < 3660; i++) @autoreleasepool {
+        int s = [self state:h on:d key:[self dayKey:d] today:today];
         if (s == HBDone) n++; else if (s == HBMissed || s == HBBeforeStart) break;
-        d = [self addDays:-1 to:d];
+        d = [self step:d by:-1];
     }
-    return n;
+    [d release]; return n;
 }
 + (int)bestStreak:(NSDictionary *)h {
-    int best = 0, n = 0; NSDate *d = [self createdDate:h], *now = [NSDate date];
-    while ([[self dayKey:d] compare:[self dayKey:now]] != NSOrderedDescending) {
-        int s = [self state:h on:d];
+    int best = 0, n = 0; NSDate *d = [[self createdDate:h] retain]; NSString *end = [self dayKey:[NSDate date]], *today = [self today];
+    for (BOOL more = YES; more; ) @autoreleasepool {
+        NSString *key = [self dayKey:d]; if (!(more = [key compare:end] != NSOrderedDescending)) break;
+        int s = [self state:h on:d key:key today:today];
         if (s == HBDone) { n++; if (n > best) best = n; } else if (s == HBMissed) n = 0;
-        d = [self addDays:1 to:d];
+        d = [self step:d by:1];
     }
+    [d release];
     int cur = [self streak:h]; return best > cur ? best : cur;   // the running streak is a streak too
 }
 + (void)completion:(NSDictionary *)h days:(int)cnt done:(int *)done due:(int *)due {
-    int dn = 0, du = 0; NSDate *d = [NSDate date];
-    for (int i = 0; i < cnt; i++) { int s = [self state:h on:d]; if (s == HBDone) { dn++; du++; } else if (s == HBMissed) du++; d = [self addDays:-1 to:d]; }
+    int dn = 0, du = 0; NSDate *d = [[NSDate date] retain]; NSString *today = [self today];
+    for (int i = 0; i < cnt; i++) @autoreleasepool { int s = [self state:h on:d key:[self dayKey:d] today:today]; if (s == HBDone) { dn++; du++; } else if (s == HBMissed) du++; d = [self step:d by:-1]; }
+    [d release];
     if (done) *done = dn; if (due) *due = du;
 }
 + (NSArray *)dayStates:(NSDictionary *)h from:(NSDate *)start to:(NSDate *)end {
-    NSMutableArray *a = [NSMutableArray array]; NSDate *d = start;
-    while ([[self dayKey:d] compare:[self dayKey:end]] != NSOrderedDescending) { [a addObject:[NSNumber numberWithInt:[self state:h on:d]]]; d = [self addDays:1 to:d]; }
-    return a;
+    NSMutableArray *a = [NSMutableArray array]; NSDate *d = [start retain]; NSString *last = [self dayKey:end], *today = [self today];
+    for (BOOL more = YES; more; ) @autoreleasepool {
+        NSString *key = [self dayKey:d]; if (!(more = [key compare:last] != NSOrderedDescending)) break;
+        [a addObject:[NSNumber numberWithInt:[self state:h on:d key:key today:today]]]; d = [self step:d by:1];
+    }
+    [d release]; return a;
 }
 + (NSArray *)weeklyCompletion:(int)weeks {
     NSArray *hs = [self habits]; NSMutableArray *out = [NSMutableArray array];
     NSDate *monday = [self addDays:-[self weekdayIndex:[NSDate date]] to:[NSDate date]];
     monday = [self addDays:-7 * (weeks - 1) to:monday];
-    for (int w = 0; w < weeks; w++) {
+    NSString *today = [self today];
+    for (int w = 0; w < weeks; w++) @autoreleasepool {
         int done = 0, due = 0, open = 0;
-        for (int i = 0; i < 7; i++) { NSDate *d = [self addDays:w * 7 + i to:monday]; for (NSDictionary *h in hs) { int s = [self state:h on:d]; if (s == HBDone) { done++; due++; } else if (s == HBMissed) due++; else if (s == HBPending) open++; } }
+        for (int i = 0; i < 7; i++) { NSDate *d = [self addDays:w * 7 + i to:monday]; NSString *key = [self dayKey:d]; for (NSDictionary *h in hs) { int s = [self state:h on:d key:key today:today]; if (s == HBDone) { done++; due++; } else if (s == HBMissed) due++; else if (s == HBPending) open++; } }
         [out addObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithDouble:[[self addDays:w * 7 to:monday] timeIntervalSince1970]], @"t", [NSNumber numberWithDouble:due ? 100.0 * done / due : 0], @"pct", [NSNumber numberWithInt:done], @"done", [NSNumber numberWithInt:due], @"due", [NSNumber numberWithInt:due + open], @"dueSoFar", nil]];
     }
     return out;

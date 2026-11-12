@@ -69,7 +69,11 @@ static void drawTomato(CGContextRef c, CGRect r, double ripe, BOOL dim) {
 
 @implementation HBFocusViewController
 - (id)init { if ((self = [super initWithNibName:nil bundle:nil])) { self.title = @"Focus"; self.tabBarItem.title = @"Focus"; } return self; }
-- (void)dealloc { [tick invalidate]; [tomato release]; [length release]; [linkButton release]; [todayLabel release]; [dots release]; [super dealloc]; }
+- (void)dealloc { [tick invalidate]; [tick release]; [tomato release]; [length release]; [linkButton release]; [todayLabel release]; [dots release]; [super dealloc]; }
+- (void)viewDidUnload {   // a memory warning while another tab is up: loadView builds them again
+    [super viewDidUnload]; [tick invalidate]; [tick release]; tick = nil;
+    [tomato release]; tomato = nil; [length release]; length = nil; [linkButton release]; linkButton = nil; [todayLabel release]; todayLabel = nil; [dots release]; dots = nil; dotsShown = -1;
+}
 - (NSUserDefaults *)d { return [NSUserDefaults standardUserDefaults]; }
 - (void)loadView {
     UIView *root = [[UIView alloc] initWithFrame:[[UIScreen mainScreen] applicationFrame]]; root.backgroundColor = [UIColor colorWithRed:0.97 green:0.96 blue:0.93 alpha:1]; self.view = root; [root release];

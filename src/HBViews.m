@@ -115,6 +115,28 @@ static void graphPaper(CGContextRef c, CGRect b) {   // inset panel with a fine 
 }
 @end
 
+#pragma mark - Drawings that sleep
+
+static CFMutableSetRef liveDrawings = NULL;   // every HBDrawingView, not retained
+static NSMutableSet *sleepers = nil;          // let go in the background; they draw again on coming forward
+@implementation HBDrawingView
+- (id)initWithFrame:(CGRect)f { if ((self = [super initWithFrame:f])) { if (!liveDrawings) liveDrawings = CFSetCreateMutable(NULL, 0, NULL); CFSetAddValue(liveDrawings, self); } return self; }
+- (void)dealloc { CFSetRemoveValue(liveDrawings, self); [super dealloc]; }
+@end
+void HBSleepDrawings(BOOL evenOnScreen) {
+    CFIndex n = liveDrawings ? CFSetGetCount(liveDrawings) : 0; if (!n) return;
+    BOOL away = [[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground;
+    const void **all = malloc(n * sizeof(void *)); CFSetGetValues(liveDrawings, all);
+    for (CFIndex i = 0; i < n; i++) {
+        UIView *v = (UIView *)all[i]; if ((!evenOnScreen && v.window) || !v.layer.contents) continue;
+        v.layer.contents = nil;
+        if (!away) [v setNeedsDisplay];   // out of sight: drawn when it is next in a window
+        else { if (!sleepers) sleepers = [[NSMutableSet alloc] init]; [sleepers addObject:v]; }   // nothing draws until the app is back
+    }
+    free(all);
+}
+void HBWakeDrawings(void) { for (UIView *v in sleepers) [v setNeedsDisplay]; [sleepers removeAllObjects]; }
+
 #pragma mark - Paper, leather, calendar
 #define PAPER_W 320
 #define RULE_H 44
@@ -149,9 +171,10 @@ void HBSkinNavBar(UINavigationBar *bar) {
 }
 // One rendered sheet per row size, shared by every row, strip and background of that size. A view with drawRect: gets its
 // own bitmap (a 320x44 row is 220 KB at 2x), and Today rebuilds its note strip on every check-off.
+static NSMutableDictionary *paperCache = nil, *circleCache = nil;   // HBPurge empties both; views keep the images they show
 static UIImage *paperImage(CGSize sz, BOOL selected) {
     if (sz.width < 1 || sz.height < 1) return nil;
-    static NSMutableDictionary *cache = nil; if (!cache) cache = [[NSMutableDictionary alloc] init];
+    if (!paperCache) paperCache = [[NSMutableDictionary alloc] init]; NSMutableDictionary *cache = paperCache;
     NSString *k = [NSString stringWithFormat:@"%gx%g%@", sz.width, sz.height, selected ? @"s" : @""];
     UIImage *img = [cache objectForKey:k]; if (img) return img;
     UIGraphicsBeginImageContextWithOptions(sz, YES, 0); CGContextRef c = UIGraphicsGetCurrentContext();
@@ -288,6 +311,12 @@ UIView *HBPaperStrip(CGFloat width, CGFloat height, NSString *text, BOOL bold) {
     [view performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.3];
 }
 - (BOOL)visible { return view && view.superview && view.frame.origin.y < view.superview.bounds.size.height; }
+- (void)purge {   // the pickers are a few hundred KB, and the callbacks hold on to the screen that last used them
+    if (!view || view.superview) return;
+    picker.delegate = nil; picker.dataSource = nil; [timePicker removeTarget:self action:NULL forControlEvents:UIControlEventAllEvents];
+    [view release]; view = nil; [bar release]; bar = nil; [title release]; title = nil; [picker release]; picker = nil; [timePicker release]; timePicker = nil;
+    [rows release]; rows = nil; [onChange release]; onChange = nil; [onDone release]; onDone = nil;
+}
 - (void)done { void (^d)(void) = onDone; [self hide]; if (d) d(); }
 - (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pv { return 1; }
 - (NSInteger)pickerView:(UIPickerView *)pv numberOfRowsInComponent:(NSInteger)c { return [rows count]; }
@@ -296,7 +325,18 @@ UIView *HBPaperStrip(CGFloat width, CGFloat height, NSString *text, BOOL bold) {
 - (void)pickerView:(UIPickerView *)pv didSelectRow:(NSInteger)row inComponent:(NSInteger)c { if (onChange) onChange(row); }
 @end
 
-UIImage *HBCircle(UIColor *color, double progress, int state, CGFloat size) {
+void HBPurge(void) { [paperCache removeAllObjects]; [circleCache removeAllObjects]; [[HBDrum shared] purge]; }
+static UIImage *drawCircle(UIColor *color, double progress, int state, CGFloat size);
+UIImage *HBCircle(UIColor *color, double progress, int state, CGFloat size) {   // the same few circles are asked for on every check-off: drawn once each
+    const CGFloat *k = CGColorGetComponents(color.CGColor); size_t nk = CGColorGetNumberOfComponents(color.CGColor);
+    NSMutableString *key = [NSMutableString stringWithFormat:@"%d %.17g %.17g", state, progress, (double)size]; for (size_t i = 0; i < nk; i++) [key appendFormat:@" %.17g", (double)k[i]];
+    if (!circleCache) circleCache = [[NSMutableDictionary alloc] init];
+    UIImage *img = [circleCache objectForKey:key]; if (img) return img;
+    img = drawCircle(color, progress, state, size); if (!img) return nil;
+    if ([circleCache count] >= 64) [circleCache removeAllObjects];
+    [circleCache setObject:img forKey:key]; return img;
+}
+static UIImage *drawCircle(UIColor *color, double progress, int state, CGFloat size) {
     // Reminders-style: a recessed ring pressed into the paper; done fills it with a glossy colour and a white check
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0);
     CGContextRef c = UIGraphicsGetCurrentContext(); CGRect r = CGRectInset(CGRectMake(0, 0, size, size), 2.5, 2.5);

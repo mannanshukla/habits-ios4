@@ -213,9 +213,9 @@ static UIColor *blue(void) { return [UIColor colorWithRed:0x4D/255.0 green:0x7C/
 @end
 
 @implementation HBDetailViewController
-- (id)initWithHabit:(NSDictionary *)h { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { habit = [h retain]; self.title = [h objectForKey:@"name"]; self.navigationItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Edit" style:UIBarButtonItemStyleBordered target:self action:@selector(edit)] autorelease]; } return self; }
+- (id)initWithHabit:(NSDictionary *)h { if ((self = [super initWithStyle:UITableViewStyleGrouped])) { habit = [h retain]; self.title = [h objectForKey:@"name"]; self.navigationItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Edit" style:UIBarButtonItemStyleBordered target:self action:@selector(edit)] autorelease];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deleted) name:@"HBHabitDeleted" object:nil]; } return self; }   // once: viewDidLoad runs again after a memory warning, and a second observer would pop twice
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; [habit release]; [heat release]; [byDay release]; [super dealloc]; }
-- (void)viewDidLoad { [super viewDidLoad]; [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deleted) name:@"HBHabitDeleted" object:nil]; }
 - (void)deleted { [self.navigationController popViewControllerAnimated:NO]; }
 - (void)edit { HBEditViewController *e = [[HBEditViewController alloc] initWithHabit:habit]; UINavigationController *n = [[UINavigationController alloc] initWithRootViewController:e]; n.navigationBar.tintColor = self.navigationController.navigationBar.tintColor; HBSkinNavBar(n.navigationBar); [self presentModalViewController:n animated:YES]; [n release]; [e release]; }
 - (void)viewWillAppear:(BOOL)a {

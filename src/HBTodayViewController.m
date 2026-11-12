@@ -6,13 +6,13 @@
 
 @implementation HBTodayViewController
 - (id)init { if ((self = [super initWithStyle:UITableViewStylePlain])) { self.title = @"Today"; self.tabBarItem.title = @"Today"; self.navigationItem.backBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Today" style:UIBarButtonItemStyleBordered target:nil action:nil] autorelease]; } return self; }
-- (void)dealloc { [due release]; [rest release]; [sheetHabit release]; [super dealloc]; }
+- (void)dealloc { [due release]; [rest release]; [sheetHabit release]; [titleDay release]; [super dealloc]; }
 - (void)reload {
     NSMutableArray *d = [NSMutableArray array], *r = [NSMutableArray array];
     for (NSDictionary *h in [HBStore habits]) { if ([HBStore isDue:h on:[NSDate date]]) [d addObject:h]; else [r addObject:h]; }
     [due release]; due = [d retain]; [rest release]; rest = [r retain];
-    NSDateFormatter *f = [[[NSDateFormatter alloc] init] autorelease]; [f setDateFormat:@"EEEE, MMMM d"];
-    self.navigationItem.title = [f stringFromDate:[NSDate date]];
+    NSString *day = [[HBStore today] stringByAppendingString:[[NSLocale currentLocale] localeIdentifier]];   // the title only changes with the day (or the region format): no new formatter on every check-off
+    if (![day isEqualToString:titleDay]) { NSDateFormatter *f = [[[NSDateFormatter alloc] init] autorelease]; [f setDateFormat:@"EEEE, MMMM d"]; self.navigationItem.title = [f stringFromDate:[NSDate date]]; [titleDay release]; titleDay = [day copy]; }
     [self.tableView reloadData];
 }
 - (void)viewDidLoad {
